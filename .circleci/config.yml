@@ -1,0 +1,55 @@
+version: 2.1
+
+orbs:
+  python: circleci/python@1.2
+
+jobs:
+  build_test:
+    docker:
+      - image: cimg/python:3.9
+    steps:
+      - checkout
+      - run: sudo apt-get update && sudo apt-get upgrade
+      - run:
+          name: Run tests
+          command: |
+            pip3 install virtualenv
+            TEST_VIRTUALENV_DIR=mutwo_test
+            mkdir $TEST_VIRTUALENV_DIR
+            virtualenv $TEST_VIRTUALENV_DIR/mutwo_test
+            source mutwo_test/mutwo_test/bin/activate
+            pip3 install .[testing]
+            cp -r tests mutwo_test/
+            cd mutwo_test
+            nosetests --with-coverage --cover-package=mutwo
+            deactivate
+  pypi_publish:
+    docker:
+      - image: circleci/python:3.9
+    steps:
+      - checkout  # checkout source code to working directory
+      - run:
+          filters:
+            tags:
+              only: /.*/
+          command: |  # create whl, install twine and publish to PyPI
+            pip3 install virtualenv
+            virtualenv venv
+            source venv/bin/activate
+            pip3 install --upgrade pip
+            pip3 install -U twine wheel setuptools
+            python3 setup.py sdist bdist_wheel
+            twine check dist/*
+            twine upload dist/*
+            deactivate
+
+workflows:
+  build_test_publish:
+    jobs:
+      - build_test
+      - pypi_publish:
+          requires:
+            - build_test
+          filters:
+            tags:
+              only: /.*/
