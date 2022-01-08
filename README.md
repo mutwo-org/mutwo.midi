@@ -5,8 +5,16 @@
 [![PyPI version](https://badge.fury.io/py/mutwo.ext-midi.svg)](https://badge.fury.io/py/mutwo.ext-midi)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-[Mutwo](https://github.com/mutwo-org/mutwo) extension for midi.
+Midi extension for [mutwo](https://github.com/mutwo-org/mutwo).
 
 This extension implements:
 
 - mutwo.ext.converters.frontends.midi extension package.
+
+### Installation
+
+mutwo.ext-midi is available on [pypi](https://pypi.org/project/mutwo.ext-midi/) and can be installed via pip:
+
+```sh
+pip3 install mutwo.ext-midi
+```
