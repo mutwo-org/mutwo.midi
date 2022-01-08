@@ -8,7 +8,7 @@ extras_require = {"testing": ["nose", "coveralls", "mutwo.ext-music>=0.1.0, <1.0
 
 setuptools.setup(
     name="mutwo.ext-midi",
-    version="0.43.0",
+    version="0.43.1",
     license="GPL",
     description="example extension for event based framework for generative art",
     long_description=long_description,
