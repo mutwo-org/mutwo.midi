@@ -56,9 +56,9 @@ class CentDeviationToPitchBendingNumberConverterTest(unittest.TestCase):
         )
 
         # now test values inbetween
-        self.assertEqual(
-            self.converter0.convert(100),
-            int(midi_constants.NEUTRAL_PITCH_BEND * 0.5),
+        self.assertTrue(
+            self.converter0.convert(100) - int(midi_constants.NEUTRAL_PITCH_BEND * 0.5)
+            <= 1
         )
         self.assertEqual(
             self.converter0.convert(200 * 0.3),

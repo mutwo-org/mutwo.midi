@@ -62,26 +62,36 @@ class CentDeviationToPitchBendingNumberConverter(abc.Converter):
             f"Maximum pitch bending is {maximum_pitch_bend_deviation} cents up or down!"
         )
 
+    def _warn_pitch_bending(self, cent_deviation: utilities.constants.Real):
+        warnings.warn(
+            f"Maximum pitch bending is {self._maximum_pitch_bend_deviation} "
+            "cents up or down! Found prohibited necessity for pitch "
+            f"bending with cent_deviation = {cent_deviation}. "
+            "Mutwo normalized pitch bending to the allowed border."
+            " Increase the 'maximum_pitch_bend_deviation' argument in the "
+            "CentDeviationToPitchBendingNumberConverter instance."
+        )
+
     def convert(
         self,
         cent_deviation: utilities.constants.Real,
     ) -> int:
-        pitch_bend_percent = (cent_deviation + self._maximum_pitch_bend_deviation) / (
-            self._maximum_pitch_bend_deviation * 2
-        )
-
-        if pitch_bend_percent > 1:
-            pitch_bend_percent = 1
-            warnings.warn(self._pitch_bending_warning)
-
-        if pitch_bend_percent < 0:
-            pitch_bend_percent = 0
-            warnings.warn(self._pitch_bending_warning)
+        if cent_deviation >= self._maximum_pitch_bend_deviation:
+            self._warn_pitch_bending(cent_deviation)
+            cent_deviation = self._maximum_pitch_bend_deviation
+        elif cent_deviation <= -self._maximum_pitch_bend_deviation:
+            self._warn_pitch_bending(cent_deviation)
+            cent_deviation = -self._maximum_pitch_bend_deviation
 
         pitch_bending_number = round(
-            midi_constants.MAXIMUM_PITCH_BEND * pitch_bend_percent
+            utilities.tools.scale(
+                cent_deviation,
+                -self._maximum_pitch_bend_deviation,
+                self._maximum_pitch_bend_deviation,
+                -midi_constants.NEUTRAL_PITCH_BEND,
+                midi_constants.NEUTRAL_PITCH_BEND,
+            )
         )
-        pitch_bending_number -= midi_constants.NEUTRAL_PITCH_BEND
 
         return pitch_bending_number
 
