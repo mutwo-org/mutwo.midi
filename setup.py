@@ -4,7 +4,7 @@ import setuptools  # type: ignore
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-extras_require = {"testing": ["nose", "coveralls", "mutwo.ext-music>=0.1.0, <1.0.0"]}
+extras_require = {"testing": ["nose", "coveralls"]}
 
 setuptools.setup(
     name="mutwo.ext-midi",
@@ -22,9 +22,11 @@ setuptools.setup(
     ],
     setup_requires=[],
     install_requires=[
-        "mutwo>=0.43.0, <1.0.0",
+        "mutwo>=0.49.0, <1.0.0",
+        "mutwo.ext-music>=0.2.0, <1.0.0",
         "expenvelope>=0.6.5, <1.0.0",
         "mido>=1.2.9, <2",
+        "numpy>=1.18, <2.00",
     ],
     extras_require=extras_require,
     python_requires=">=3.9, <4",

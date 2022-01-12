@@ -4,68 +4,72 @@ import unittest
 
 import expenvelope  # type: ignore
 import mido  # type: ignore
+import numpy as np  # type: ignore
 
 from mutwo.core.events import basic
-from mutwo.core.parameters import pitches
-from mutwo.core.parameters import volumes
 from mutwo.core.utilities import tools
 
 from mutwo.ext.converters.frontends import midi
 from mutwo.ext.converters.frontends import midi_constants
 from mutwo.ext.events import music
+from mutwo.ext.parameters import pitches
+from mutwo.ext.parameters import volumes
+
+
+class CentDeviationToPitchBendingNumberConverterTest(unittest.TestCase):
+    def setUp(cls):
+        cls.converter0 = midi.CentDeviationToPitchBendingNumberConverter(
+            maximum_pitch_bend_deviation=200
+        )
+        cls.converter1 = midi.CentDeviationToPitchBendingNumberConverter(
+            maximum_pitch_bend_deviation=500
+        )
+
+    def test_cent_deviation_to_pitch_bending_number(self):
+        # first test all 'border values'
+        self.assertEqual(self.converter0.convert(0), 0)
+        self.assertEqual(
+            self.converter0.convert(200),
+            midi_constants.NEUTRAL_PITCH_BEND,
+        )
+        self.assertEqual(
+            self.converter0.convert(-200),
+            -midi_constants.NEUTRAL_PITCH_BEND,
+        )
+        self.assertEqual(
+            self.converter1.convert(-500),
+            -midi_constants.NEUTRAL_PITCH_BEND,
+        )
+        self.assertEqual(
+            self.converter1.convert(5000),
+            midi_constants.NEUTRAL_PITCH_BEND,
+        )
+
+        # test too high / too low values
+        self.assertEqual(
+            self.converter0.convert(250),
+            midi_constants.NEUTRAL_PITCH_BEND,
+        )
+        self.assertEqual(
+            self.converter0.convert(-250),
+            -midi_constants.NEUTRAL_PITCH_BEND,
+        )
+
+        # now test values inbetween
+        self.assertEqual(
+            self.converter0.convert(100),
+            int(midi_constants.NEUTRAL_PITCH_BEND * 0.5),
+        )
+        self.assertEqual(
+            self.converter0.convert(200 * 0.3),
+            int(midi_constants.NEUTRAL_PITCH_BEND * 0.3),
+        )
 
 
 class MutwoPitchToMidiPitchConverterTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.converter = midi.MutwoPitchToMidiPitchConverter()
-
-    def test_cent_deviation_to_pitch_bending_number(self):
-        converter0 = midi.MutwoPitchToMidiPitchConverter(
-            maximum_pitch_bend_deviation=200
-        )
-        converter1 = midi.MutwoPitchToMidiPitchConverter(
-            maximum_pitch_bend_deviation=500
-        )
-
-        # first test all 'border values'
-        self.assertEqual(converter0._cent_deviation_to_pitch_bending_number(0), 0)
-        self.assertEqual(
-            converter0._cent_deviation_to_pitch_bending_number(200),
-            midi_constants.NEUTRAL_PITCH_BEND,
-        )
-        self.assertEqual(
-            converter0._cent_deviation_to_pitch_bending_number(-200),
-            -midi_constants.NEUTRAL_PITCH_BEND,
-        )
-        self.assertEqual(
-            converter1._cent_deviation_to_pitch_bending_number(-500),
-            -midi_constants.NEUTRAL_PITCH_BEND,
-        )
-        self.assertEqual(
-            converter1._cent_deviation_to_pitch_bending_number(5000),
-            midi_constants.NEUTRAL_PITCH_BEND,
-        )
-
-        # test too high / too low values
-        self.assertEqual(
-            converter0._cent_deviation_to_pitch_bending_number(250),
-            midi_constants.NEUTRAL_PITCH_BEND,
-        )
-        self.assertEqual(
-            converter0._cent_deviation_to_pitch_bending_number(-250),
-            -midi_constants.NEUTRAL_PITCH_BEND,
-        )
-
-        # now test values inbetween
-        self.assertEqual(
-            converter0._cent_deviation_to_pitch_bending_number(100),
-            int(midi_constants.NEUTRAL_PITCH_BEND * 0.5),
-        )
-        self.assertEqual(
-            converter0._cent_deviation_to_pitch_bending_number(200 * 0.3),
-            int(midi_constants.NEUTRAL_PITCH_BEND * 0.3),
-        )
 
     def test_convert(self):
         pitch_to_tune_per_test = (
@@ -238,7 +242,7 @@ class MidiFileConverterTest(unittest.TestCase):
         )
 
         self.assertEqual(
-            self.converter._tempo_envelope_to_midi_messages(tempo_envelope),
+            self.converter._tempo_envelope_to_midi_message_tuple(tempo_envelope),
             midi_messages,
         )
 
@@ -255,8 +259,8 @@ class MidiFileConverterTest(unittest.TestCase):
         ):
             start, end, velocity, pitch = note_information
 
-            midi_pitch, pitch_bending_message = self.converter._tune_pitch(
-                start, pitch, midi_channel
+            midi_pitch, pitch_bending_message_tuple = self.converter._tune_pitch(
+                start, end, pitch, midi_channel
             )
             note_on_message = mido.Message(
                 "note_on",
@@ -272,20 +276,19 @@ class MidiFileConverterTest(unittest.TestCase):
                 time=end,
                 channel=midi_channel,
             )
-            expected_midi_messages = (
-                pitch_bending_message,
+            expected_midi_message_tuple = pitch_bending_message_tuple + (
                 note_on_message,
                 note_off_message,
             )
 
             self.assertEqual(
-                self.converter._note_information_to_midi_messages(
-                    start, end, velocity, pitch, available_midi_channels_cycle
+                self.converter._note_information_to_midi_message_tuple(
+                    start, end, velocity, pitch, next(available_midi_channels_cycle)
                 ),
-                expected_midi_messages,
+                expected_midi_message_tuple,
             )
 
-    def test_extracted_data_to_midi_messages(self):
+    def test_extracted_data_to_midi_message_tuple(self):
         # TODO(is this really a test (just using the same code or code structure
         # that is used in the tested method)?)
 
@@ -324,13 +327,13 @@ class MidiFileConverterTest(unittest.TestCase):
 
             for pitch in pitch_list:
                 expected_midi_messages.extend(
-                    self.converter._note_information_to_midi_messages(
-                        start, end, velocity, pitch, available_midi_channels_cycle
+                    self.converter._note_information_to_midi_message_tuple(
+                        start, end, velocity, pitch, next(available_midi_channels_cycle)
                     )
                 )
 
             self.assertEqual(
-                self.converter._extracted_data_to_midi_messages(
+                self.converter._extracted_data_to_midi_message_tuple(
                     absolute_time,
                     duration,
                     available_midi_channels_cycle,
@@ -341,7 +344,146 @@ class MidiFileConverterTest(unittest.TestCase):
                 tuple(expected_midi_messages),
             )
 
-    def test_simple_event_to_midi_messages(self):
+    def test_tune_pitch(self):
+        midi_channel = 1
+        self.assertEqual(
+            (
+                69,
+                (mido.Message("pitchwheel", channel=midi_channel, pitch=0, time=0),),
+            ),
+            self.converter._tune_pitch(0, 100, pitches.DirectPitch(440), midi_channel),
+        )
+
+    def test_tune_pitch_with_microtone_up(self):
+        midi_channel = 1
+        self.assertEqual(
+            (
+                69,
+                (mido.Message("pitchwheel", channel=midi_channel, pitch=2048, time=0),),
+            ),
+            self.converter._tune_pitch(
+                0, 100, pitches.WesternPitch("aqs"), midi_channel
+            ),
+        )
+
+    def test_tune_pitch_with_microtone_down(self):
+        midi_channel = 1
+        self.assertEqual(
+            (
+                69,
+                (
+                    mido.Message(
+                        "pitchwheel", channel=midi_channel, pitch=-1024, time=0
+                    ),
+                ),
+            ),
+            self.converter._tune_pitch(
+                0, 100, pitches.WesternPitch("aef"), midi_channel
+            ),
+        )
+
+    def test_tune_pitch_with_constant_envelope(self):
+        midi_channel = 1
+        pitch = pitches.DirectPitch(440)
+        pitch.envelope[:] = [
+            basic.SimpleEvent(100).set_parameter(
+                "pitch_interval", pitches.DirectPitchInterval(-200)
+            ),
+            basic.SimpleEvent(0).set_parameter(
+                "pitch_interval", pitches.DirectPitchInterval(200)
+            ),
+        ]
+        n_ticks = 100
+
+        pitchwheel_message_list = []
+        for tick, tick_percentage in enumerate(np.linspace(0, 1, n_ticks, dtype=float)):
+            pitch_bend = (
+                int(tick_percentage * midi_constants.MAXIMUM_PITCH_BEND)
+                - midi_constants.NEUTRAL_PITCH_BEND
+            )
+            pitchwheel_message = mido.Message(
+                "pitchwheel", channel=midi_channel, pitch=pitch_bend, time=tick
+            )
+            pitchwheel_message_list.append(pitchwheel_message)
+
+        result_midi_pitch, result_pitchwheel_message_tuple = self.converter._tune_pitch(
+            0, n_ticks, pitch, midi_channel
+        )
+        self.assertEqual(result_midi_pitch, 69)
+
+        for result_pitchwheel_message, expected_pitchwheel_message in zip(
+            result_pitchwheel_message_tuple, pitchwheel_message_list
+        ):
+            # compare pitch
+            # Allow rounding error of 0.0244140625 cents (for maximum_pitch_bend = 200 cents)
+            self.assertTrue(
+                abs(result_pitchwheel_message.pitch - expected_pitchwheel_message.pitch)  # type: ignore
+                <= 1
+            )
+            # compare time
+            self.assertEqual(
+                result_pitchwheel_message.time,  # type: ignore
+                expected_pitchwheel_message.time,  # type: ignore
+            )
+
+    def test_tune_pitch_with_centering_envelope(self):
+        n_ticks = 1000
+        midi_channel = 1
+        pitch = pitches.DirectPitch(440)
+        pitch.envelope[:] = [
+            basic.SimpleEvent(n_ticks / 2).set_parameter(
+                "pitch_interval", pitches.DirectPitchInterval(-200)
+            ),
+            basic.SimpleEvent(n_ticks / 2).set_parameter(
+                "pitch_interval", pitches.DirectPitchInterval(0)
+            ),
+        ]
+
+        pitchwheel_message_list = []
+        for tick, tick_percentage in enumerate(
+            np.linspace(0.25, 0.75, n_ticks // 2, dtype=float)
+        ):
+            pitch_bend = (
+                int(midi_constants.MAXIMUM_PITCH_BEND * tick_percentage)
+                - midi_constants.NEUTRAL_PITCH_BEND
+            )
+            pitchwheel_message = mido.Message(
+                "pitchwheel", channel=midi_channel, pitch=pitch_bend, time=tick
+            )
+            pitchwheel_message_list.append(pitchwheel_message)
+
+        time_offset = pitchwheel_message_list[-1].time
+
+        for nth_tick in range((n_ticks // 2) + 1):
+            pitchwheel_message = mido.Message(
+                "pitchwheel",
+                channel=midi_channel,
+                pitch=4095,
+                time=nth_tick + time_offset + 1,
+            )
+            pitchwheel_message_list.append(pitchwheel_message)
+
+        result_midi_pitch, result_pitchwheel_message_tuple = self.converter._tune_pitch(
+            0, n_ticks, pitch, midi_channel
+        )
+        self.assertEqual(result_midi_pitch, 68)
+
+        for result_pitchwheel_message, expected_pitchwheel_message in zip(
+            result_pitchwheel_message_tuple, pitchwheel_message_list
+        ):
+            # compare pitch
+            # Allow rounding error of 0.244140625 cents (for maximum_pitch_bend = 200 cents)
+            self.assertTrue(
+                abs(result_pitchwheel_message.pitch - expected_pitchwheel_message.pitch)  # type: ignore
+                <= 10
+            )
+            # compare time
+            self.assertEqual(
+                result_pitchwheel_message.time,  # type: ignore
+                expected_pitchwheel_message.time,  # type: ignore
+            )
+
+    def test_simple_event_to_midi_message_tuple(self):
         # loop only channel 2
         midi_channel = 2
         available_midi_channels_cycle = itertools.cycle((midi_channel,))
@@ -353,7 +495,7 @@ class MidiFileConverterTest(unittest.TestCase):
         # a rest shouldn't produce any messages
         rest = basic.SimpleEvent(2)
         self.assertEqual(
-            self.converter._simple_event_to_midi_messages(
+            self.converter._simple_event_to_midi_message_tuple(
                 rest, 0, available_midi_channels_cycle
             ),
             tuple([]),
@@ -367,7 +509,7 @@ class MidiFileConverterTest(unittest.TestCase):
         absolute_time1 = 32
         absolute_time1_in_ticks = self.converter._beats_to_ticks(absolute_time1)
         self.assertEqual(
-            self.converter._simple_event_to_midi_messages(
+            self.converter._simple_event_to_midi_message_tuple(
                 tone, absolute_time1, available_midi_channels_cycle
             ),
             (
@@ -409,7 +551,7 @@ class MidiFileConverterTest(unittest.TestCase):
         absolute_time2 = 2
         absolute_time2_in_ticks = self.converter._beats_to_ticks(absolute_time2)
         self.assertEqual(
-            self.converter._simple_event_to_midi_messages(
+            self.converter._simple_event_to_midi_message_tuple(
                 chord, absolute_time2, available_midi_channels_cycle
             ),
             (
@@ -458,10 +600,10 @@ class MidiFileConverterTest(unittest.TestCase):
             ),
         )
 
-    def test_sequential_event_to_midi_messages(self):
+    def test_sequential_event_to_midi_message_tuple(self):
         pass
 
-    def test_midi_messages_to_midi_track(self):
+    def test_midi_message_tuple_to_midi_track(self):
         pass
 
     def test_add_simple_event_to_midi_file(self):

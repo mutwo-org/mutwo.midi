@@ -13,14 +13,15 @@ import mido  # type: ignore
 
 from mutwo.core.converters import abc
 from mutwo.core.converters import symmetrical
-
-from mutwo.ext.converters.frontends import midi_constants
-
 from mutwo.core import events
 from mutwo.core import parameters
 from mutwo.core import utilities
 
+from mutwo.ext.converters.frontends import midi_constants
+from mutwo.ext import parameters as ext_parameters
+
 __all__ = (
+    "CentDeviationToPitchBendingNumberConverter",
     "MutwoPitchToMidiPitchConverter",
     "MidiFileConverter",
 )
@@ -39,8 +40,8 @@ PitchBend = int
 MidiPitch = tuple[MidiNote, PitchBend]
 
 
-class MutwoPitchToMidiPitchConverter(abc.Converter):
-    """Convert mutwo pitch to midi pitch number and midi pitch bend number.
+class CentDeviationToPitchBendingNumberConverter(abc.Converter):
+    """Convert cent deviatiion to midi pitch bend number.
 
     :param maximum_pitch_bend_deviation: sets the maximum pitch bending range in cents.
         This value depends on the particular used software synthesizer and its settings,
@@ -61,7 +62,7 @@ class MutwoPitchToMidiPitchConverter(abc.Converter):
             f"Maximum pitch bending is {maximum_pitch_bend_deviation} cents up or down!"
         )
 
-    def _cent_deviation_to_pitch_bending_number(
+    def convert(
         self,
         cent_deviation: utilities.constants.Real,
     ) -> int:
@@ -84,15 +85,35 @@ class MutwoPitchToMidiPitchConverter(abc.Converter):
 
         return pitch_bending_number
 
+
+class MutwoPitchToMidiPitchConverter(abc.Converter):
+    """Convert mutwo pitch to midi pitch number and midi pitch bend number.
+
+    :param maximum_pitch_bend_deviation: sets the maximum pitch bending range in cents.
+        This value depends on the particular used software synthesizer and its settings,
+        because it is up to the respective synthesizer how to interpret the pitch
+        bending messages. By default mutwo sets the value to 200 cents which
+        seems to be the most common interpretation among different manufacturers.
+    :type maximum_pitch_bend_deviation: int
+    """
+
+    def __init__(
+        self,
+        cent_deviation_to_pitch_bending_number_converter: CentDeviationToPitchBendingNumberConverter = CentDeviationToPitchBendingNumberConverter(),
+    ):
+        self._cent_deviation_to_pitch_bending_number_converter = (
+            cent_deviation_to_pitch_bending_number_converter
+        )
+
     def convert(
         self,
-        mutwo_pitch_to_convert: parameters.abc.Pitch,
+        mutwo_pitch_to_convert: ext_parameters.abc.Pitch,
         midi_note: typing.Optional[int] = None,
     ) -> MidiPitch:
         """Find midi note and pitch bending for given mutwo pitch
 
         :param mutwo_pitch_to_convert: The mutwo pitch which shall be converted.
-        :type mutwo_pitch_to_convert: parameters.abc.Pitch
+        :type mutwo_pitch_to_convert: ext_parameters.abc.Pitch
         :param midi_note: Can be set to a midi note value if one wants to force
             the converter to calculate the pitch bending deviation for the passed
             midi note. If this argument is ``None`` the converter will simply use
@@ -105,14 +126,20 @@ class MutwoPitchToMidiPitchConverter(abc.Converter):
             closest_midi_pitch = midi_note
         else:
             closest_midi_pitch = utilities.tools.find_closest_index(
-                frequency, parameters.pitches_constants.MIDI_PITCH_FREQUENCY_TUPLE
+                frequency, ext_parameters.pitches_constants.MIDI_PITCH_FREQUENCY_TUPLE
             )
-        difference_in_cents_to_closest_midi_pitch = parameters.abc.Pitch.hertz_to_cents(
-            parameters.pitches_constants.MIDI_PITCH_FREQUENCY_TUPLE[closest_midi_pitch],
-            frequency,
+        difference_in_cents_to_closest_midi_pitch = (
+            ext_parameters.abc.Pitch.hertz_to_cents(
+                ext_parameters.pitches_constants.MIDI_PITCH_FREQUENCY_TUPLE[
+                    closest_midi_pitch
+                ],
+                frequency,
+            )
         )
-        pitch_bending_number = self._cent_deviation_to_pitch_bending_number(
-            difference_in_cents_to_closest_midi_pitch
+        pitch_bending_number = (
+            self._cent_deviation_to_pitch_bending_number_converter.convert(
+                difference_in_cents_to_closest_midi_pitch
+            )
         )
 
         return closest_midi_pitch, pitch_bending_number
@@ -129,7 +156,7 @@ class MidiFileConverter(abc.Converter):
 
     :param simple_event_to_pitch_list: Function to extract from a
         :class:`mutwo.events.basic.SimpleEvent` a tuple that contains pitch objects
-        (objects that inherit from :class:`mutwo.parameters.abc.Pitch`).
+        (objects that inherit from :class:`mutwo.ext.parameters.abc.Pitch`).
         By default it asks the Event for its :attr:`pitch_list` attribute
         (because by default :class:`mutwo.events.music.NoteLike` objects are expected).
         When using different Event classes than ``NoteLike`` with a different name for
@@ -137,11 +164,11 @@ class MidiFileConverter(abc.Converter):
         raises an :obj:`AttributeError` (e.g. if no pitch can be extracted),
         mutwo will interpret the event as a rest.
     :type simple_event_to_pitch_list: typing.Callable[
-            [events.basic.SimpleEvent], tuple[parameters.abc.Pitch, ...]]
+            [events.basic.SimpleEvent], tuple[ext_parameters.abc.Pitch, ...]]
     :param simple_event_to_volume: Function to extract the volume from a
         :class:`mutwo.events.basic.SimpleEvent` in the purpose of generating midi notes.
         The function should return an object that inhertis from
-        :class:`mutwo.parameters.abc.Volume`. By default it asks the Event for
+        :class:`mutwo.ext.parameters.abc.Volume`. By default it asks the Event for
         its :attr:`volume` attribute (because by default
         :class:`mutwo.events.music.NoteLike` objects are expected).
         When using different Event classes than ``NoteLike`` with a
@@ -149,7 +176,7 @@ class MidiFileConverter(abc.Converter):
         If the function call raises an :obj:`AttributeError` (e.g. if no volume can be
         extracted), mutwo will interpret the event as a rest.
     :type simple_event_to_volume: typing.Callable[
-            [events.basic.SimpleEvent], parameters.abc.Volume]
+            [events.basic.SimpleEvent], ext_parameters.abc.Volume]
     :param simple_event_to_control_message_tuple: Function to generate midi control messages
         from a simple event. By default no control messages are generated. If the
         function call raises an AttributeError (e.g. if an expected control value isn't
@@ -200,7 +227,7 @@ class MidiFileConverter(abc.Converter):
     **Example**:
 
     >>> from mutwo.converters.frontends import midi
-    >>> from mutwo.parameters import pitches
+    >>> from mutwo.ext.parameters import pitches
     >>> # midi file converter that assign a middle c to all events
     >>> midi_converter = midi.MidiFileConverter(
     >>>     simple_event_to_pitch_list=lambda event: (pitches.WesternPitch('c'),)
@@ -217,10 +244,10 @@ class MidiFileConverter(abc.Converter):
     def __init__(
         self,
         simple_event_to_pitch_list: typing.Callable[
-            [events.basic.SimpleEvent], tuple[parameters.abc.Pitch, ...]
+            [events.basic.SimpleEvent], tuple[ext_parameters.abc.Pitch, ...]
         ] = lambda event: event.pitch_list,  # type: ignore
         simple_event_to_volume: typing.Callable[
-            [events.basic.SimpleEvent], parameters.abc.Volume
+            [events.basic.SimpleEvent], ext_parameters.abc.Volume
         ] = lambda event: event.volume,  # type: ignore
         simple_event_to_control_message_tuple: typing.Callable[
             [events.basic.SimpleEvent], tuple[mido.Message, ...]
@@ -235,7 +262,7 @@ class MidiFileConverter(abc.Converter):
         tempo_envelope: typing.Optional[expenvelope.Envelope] = None,
     ):
         # TODO(find a less redundant way of setting default values)
-        # set current default values if parameters aren't defined
+        # set current default values if ext_parameters aren't defined
         if midi_file_type is None:
             midi_file_type = midi_constants.DEFAULT_MIDI_FILE_TYPE
 
@@ -401,14 +428,14 @@ class MidiFileConverter(abc.Converter):
 
         return available_midi_channel_tuple_per_sequential_event
 
-    def _beats_to_ticks(self, absolute_time: parameters.abc.DurationType) -> int:
+    def _beats_to_ticks(self, absolute_time: utilities.constants.DurationType) -> int:
         return int(self._ticks_per_beat * absolute_time)
 
     # ###################################################################### #
     #             methods for converting mutwo data to midi data             #
     # ###################################################################### #
 
-    def _tempo_envelope_to_midi_messages(
+    def _tempo_envelope_to_midi_message_tuple(
         self, tempo_envelope: expenvelope.Envelope
     ) -> tuple[mido.MetaMessage, ...]:
         """Converts a SequentialEvent of ``EnvelopeEvent`` to midi Tempo messages."""
@@ -438,44 +465,73 @@ class MidiFileConverter(abc.Converter):
     def _tune_pitch(
         self,
         absolute_tick_start: int,
-        pitch_to_tune: parameters.abc.Pitch,
+        absolute_tick_end: int,
+        pitch_to_tune: ext_parameters.abc.Pitch,
         midi_channel: int,
-    ) -> tuple[MidiNote, mido.Message]:
+    ) -> tuple[MidiNote, tuple[mido.Message, ...]]:
+        n_ticks = absolute_tick_end - absolute_tick_start
+        # We have to use one tick less, so that at
+        # "pitch_envelope.value_at(n_ticks)" we already reached the
+        # end of the envelope.
+        pitch_envelope = pitch_to_tune.resolve_envelope(n_ticks - 1)
+        end = 1 if not pitch_envelope.duration else None
+        average_pitch = pitch_envelope.get_average_parameter(end=end)
         (
             midi_pitch,
             pitch_bending_number,
-        ) = self._mutwo_pitch_to_midi_pitch_converter.convert(pitch_to_tune)
-        pitch_bending_message_time = absolute_tick_start
+        ) = self._mutwo_pitch_to_midi_pitch_converter.convert(average_pitch)
+        first_pitch_bending_message_time = absolute_tick_start
         if absolute_tick_start != 0:
             # if possible add bending one tick earlier to avoid glitches
-            pitch_bending_message_time -= 1
+            first_pitch_bending_message_time -= 1
 
-        pitch_bending_message = mido.Message(
-            "pitchwheel",
-            channel=midi_channel,
-            pitch=pitch_bending_number,
-            time=pitch_bending_message_time,
-        )
-        return midi_pitch, pitch_bending_message
+        pitch_bending_message_list = []
+        if pitch_envelope.is_static:
+            pitch_bending_message_list.append(
+                mido.Message(
+                    "pitchwheel",
+                    channel=midi_channel,
+                    pitch=pitch_bending_number,
+                    time=first_pitch_bending_message_time,
+                )
+            )
+        else:
+            average_pitch_frequency = average_pitch.frequency
+            for tick in range(0, n_ticks):
+                frequency = pitch_envelope.parameter_at(tick).frequency
+                cents = ext_parameters.abc.Pitch.hertz_to_cents(
+                    average_pitch_frequency, frequency
+                )
+                pitch_bending_number = self._mutwo_pitch_to_midi_pitch_converter._cent_deviation_to_pitch_bending_number_converter.convert(
+                    cents
+                )
+                pitch_bending_message = mido.Message(
+                    "pitchwheel",
+                    channel=midi_channel,
+                    pitch=pitch_bending_number,
+                    time=tick,
+                )
+                pitch_bending_message_list.append(pitch_bending_message)
+        return midi_pitch, tuple(pitch_bending_message_list)
 
-    def _note_information_to_midi_messages(
+    def _note_information_to_midi_message_tuple(
         self,
         absolute_tick_start: int,
         absolute_tick_end: int,
         velocity: int,
-        pitch: parameters.abc.Pitch,
-        available_midi_channel_tuple_cycle: typing.Iterator,
+        pitch: ext_parameters.abc.Pitch,
+        midi_channel: int,
     ) -> tuple[mido.Message, ...]:
         """Generate 'pitch bending', 'note on' and 'note off' messages for one tone."""
 
-        midi_channel = next(available_midi_channel_tuple_cycle)
-        midi_pitch, pitch_bending_message = self._tune_pitch(
+        midi_pitch, pitch_bending_message_tuple = self._tune_pitch(
             absolute_tick_start,
+            absolute_tick_end,
             pitch,
             midi_channel,
         )
 
-        midi_message_list = [pitch_bending_message]
+        midi_message_list = list(pitch_bending_message_tuple)
 
         for time, message_name in (
             (absolute_tick_start, "note_on"),
@@ -493,13 +549,13 @@ class MidiFileConverter(abc.Converter):
 
         return tuple(midi_message_list)
 
-    def _extracted_data_to_midi_messages(
+    def _extracted_data_to_midi_message_tuple(
         self,
         absolute_time: utilities.constants.Real,
-        duration: parameters.abc.DurationType,
+        duration: utilities.constants.DurationType,
         available_midi_channel_tuple_cycle: typing.Iterator,
-        pitch_list: tuple[parameters.abc.Pitch, ...],
-        volume: parameters.abc.Volume,
+        pitch_list: tuple[ext_parameters.abc.Pitch, ...],
+        volume: ext_parameters.abc.Volume,
         control_message_tuple: tuple[mido.Message, ...],
     ) -> tuple[mido.Message, ...]:
         """Generates pitch-bend / note-on / note-off messages for each tone in a chord.
@@ -524,19 +580,20 @@ class MidiFileConverter(abc.Converter):
 
         # add note related messages
         for pitch in pitch_list:
+            midi_channel = next(available_midi_channel_tuple_cycle)
             midi_message_list.extend(
-                self._note_information_to_midi_messages(
+                self._note_information_to_midi_message_tuple(
                     absolute_tick_start,
                     absolute_tick_end,
                     velocity,
                     pitch,
-                    available_midi_channel_tuple_cycle,
+                    midi_channel,
                 )
             )
 
         return tuple(midi_message_list)
 
-    def _simple_event_to_midi_messages(
+    def _simple_event_to_midi_message_tuple(
         self,
         simple_event: events.basic.SimpleEvent,
         absolute_time: utilities.constants.Real,
@@ -546,6 +603,10 @@ class MidiFileConverter(abc.Converter):
 
         Return tuple filled with midi messages that represent the mutwo data in the
         midi format.
+
+        The timing here is absolute. Only later at the
+        `_midi_message_tuple_to_midi_track` method the timing
+        becomes relative
         """
 
         extracted_data_list = []
@@ -569,7 +630,7 @@ class MidiFileConverter(abc.Converter):
             return tuple([])
 
         # otherwise generate midi messages from the extracted data
-        midi_message_tuple = self._extracted_data_to_midi_messages(
+        midi_message_tuple = self._extracted_data_to_midi_message_tuple(
             absolute_time,
             simple_event.duration,
             available_midi_channel_tuple_cycle,
@@ -577,7 +638,7 @@ class MidiFileConverter(abc.Converter):
         )
         return midi_message_tuple
 
-    def _sequential_event_to_midi_messages(
+    def _sequential_event_to_midi_message_tuple(
         self,
         sequential_event: events.basic.SequentialEvent[events.basic.SimpleEvent],
         available_midi_channel_tuple: tuple[int, ...],
@@ -598,7 +659,7 @@ class MidiFileConverter(abc.Converter):
         for absolute_time, simple_event in zip(
             sequential_event.absolute_time_tuple, sequential_event
         ):
-            midi_message_tuple = self._simple_event_to_midi_messages(
+            midi_message_tuple = self._simple_event_to_midi_message_tuple(
                 simple_event, absolute_time, available_midi_channel_tuple_cycle
             )
             midi_message_list.extend(midi_message_tuple)
@@ -608,7 +669,7 @@ class MidiFileConverter(abc.Converter):
     def _midi_message_tuple_to_midi_track(
         self,
         midi_message_tuple: tuple[typing.Union[mido.Message, mido.MetaMessage], ...],
-        duration: parameters.abc.DurationType,
+        duration: utilities.constants.DurationType,
         is_first_track: bool = False,
     ) -> mido.MidiTrack:
         """Convert unsorted midi message with absolute timing to a midi track.
@@ -623,7 +684,7 @@ class MidiFileConverter(abc.Converter):
         if is_first_track:
             # standard time signature 4/4
             track.append(mido.MetaMessage("time_signature", numerator=4, denominator=4))
-            midi_message_tuple += self._tempo_envelope_to_midi_messages(
+            midi_message_tuple += self._tempo_envelope_to_midi_message_tuple(
                 self._tempo_envelope
             )
 
@@ -701,7 +762,7 @@ class MidiFileConverter(abc.Converter):
         )
 
         midi_data_per_sequential_event_tuple = tuple(
-            self._sequential_event_to_midi_messages(
+            self._sequential_event_to_midi_message_tuple(
                 sequential_event, available_midi_channel_tuple
             )
             for sequential_event, available_midi_channel_tuple in zip(
@@ -777,7 +838,7 @@ class MidiFileConverter(abc.Converter):
         pentatonic scale:
 
         >>> from mutwo.events import basic, music
-        >>> from mutwo.parameters import pitches
+        >>> from mutwo.ext.parameters import pitches
         >>> from mutwo.converters.frontends import midi
         >>> ascending_scale = basic.SequentialEvent(
         >>>     [
