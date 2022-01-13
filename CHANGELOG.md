@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
-## [0.44.0] - 2022-01-13
+## [0.2.0] - 2022-01-13
 
 ### Added
 - support for pitch envelopes (allow glissandi now!)

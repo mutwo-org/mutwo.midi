@@ -9,7 +9,7 @@ Midi extension for [mutwo](https://github.com/mutwo-org/mutwo).
 
 This extension implements:
 
-- mutwo.ext.converters.frontends.midi extension package.
+- `mutwo.ext.converters.frontends.midi` extension package.
 
 ### Installation
 
