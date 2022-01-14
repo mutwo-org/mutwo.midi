@@ -340,13 +340,14 @@ class MidiFileConverter(abc.Converter):
             try:
                 assert midi_channel in midi_constants.ALLOWED_MIDI_CHANNEL_TUPLE
             except AssertionError:
-                message = "Found unknown midi channel '{}' in available_midi_channel_tuple.".format(
-                    midi_constants.ALLOWED_MIDI_CHANNEL_TUPLE
+                raise ValueError(
+                    "Found unknown midi channel "
+                    f"'{midi_constants.ALLOWED_MIDI_CHANNEL_TUPLE}' "
+                    "in available_midi_channel_tuple."
+                    " Only midi channel "
+                    f"'{midi_constants.ALLOWED_MIDI_CHANNEL_TUPLE}' "
+                    "are allowed."
                 )
-                message += " Only midi channel '{}' are allowed.".format(
-                    midi_constants.ALLOWED_MIDI_CHANNEL_TUPLE
-                )
-                raise ValueError(message)
 
         # check for duplicate
         try:
@@ -650,8 +651,11 @@ class MidiFileConverter(abc.Converter):
 
     def _sequential_event_to_midi_message_tuple(
         self,
-        sequential_event: events.basic.SequentialEvent[events.basic.SimpleEvent],
+        sequential_event: events.basic.SequentialEvent[
+            typing.Union[events.basic.SimpleEvent, events.basic.SequentialEvent]
+        ],
         available_midi_channel_tuple: tuple[int, ...],
+        absolute_time: float = 0,
     ) -> tuple[mido.Message, ...]:
         """Iterates through the ``SequentialEvent`` and converts each ``SimpleEvent``.
 
@@ -666,12 +670,22 @@ class MidiFileConverter(abc.Converter):
         )
 
         # fill midi track with the content of the sequential event
-        for absolute_time, simple_event in zip(
+        for local_absolute_time, simple_event_or_sequential_event in zip(
             sequential_event.absolute_time_tuple, sequential_event
         ):
-            midi_message_tuple = self._simple_event_to_midi_message_tuple(
-                simple_event, absolute_time, available_midi_channel_tuple_cycle
-            )
+            concatenated_absolute_time = local_absolute_time + absolute_time
+            if isinstance(simple_event_or_sequential_event, events.basic.SimpleEvent):
+                midi_message_tuple = self._simple_event_to_midi_message_tuple(
+                    simple_event_or_sequential_event,
+                    concatenated_absolute_time,
+                    available_midi_channel_tuple_cycle,
+                )
+            else:
+                midi_message_tuple = self._sequential_event_to_midi_message_tuple(
+                    simple_event_or_sequential_event,
+                    available_midi_channel_tuple,
+                    concatenated_absolute_time,
+                )
             midi_message_list.extend(midi_message_tuple)
 
         return tuple(midi_message_list)
@@ -821,12 +835,12 @@ class MidiFileConverter(abc.Converter):
         elif isinstance(event_to_convert, events.basic.SimpleEvent):
             self._add_simple_event_to_midi_file(event_to_convert, midi_file)
         else:
-            message = "Can't convert object '{}' of type '{}' to a MidiFile.".format(
-                event_to_convert, type(event_to_convert)
+            raise TypeError(
+                f"Can't convert object '{event_to_convert}' "
+                f"of type '{type(event_to_convert)}' to a MidiFile. "
+                "Supported types include all inherited classes "
+                f"from '{ConvertableEventUnion}'."
             )
-            message += " Supported types include all inherited classes "
-            message += "from '{}'.".format(ConvertableEventUnion)
-            raise TypeError(message)
 
         return midi_file
 
