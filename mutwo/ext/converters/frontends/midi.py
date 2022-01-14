@@ -519,7 +519,7 @@ class MidiFileConverter(abc.Converter):
                     "pitchwheel",
                     channel=midi_channel,
                     pitch=pitch_bending_number,
-                    time=tick,
+                    time=tick + absolute_tick_start,
                 )
                 pitch_bending_message_list.append(pitch_bending_message)
         return midi_pitch, tuple(pitch_bending_message_list)

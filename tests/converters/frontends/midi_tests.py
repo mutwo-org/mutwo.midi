@@ -346,12 +346,25 @@ class MidiFileConverterTest(unittest.TestCase):
 
     def test_tune_pitch(self):
         midi_channel = 1
+        absolute_tick_start = 20
         self.assertEqual(
             (
                 69,
-                (mido.Message("pitchwheel", channel=midi_channel, pitch=0, time=0),),
+                (
+                    mido.Message(
+                        "pitchwheel",
+                        channel=midi_channel,
+                        pitch=0,
+                        # mutwo will try to put the
+                        # pitch bending message one tick
+                        # earlier
+                        time=absolute_tick_start - 1,
+                    ),
+                ),
             ),
-            self.converter._tune_pitch(0, 100, pitches.DirectPitch(440), midi_channel),
+            self.converter._tune_pitch(
+                absolute_tick_start, 100, pitches.DirectPitch(440), midi_channel
+            ),
         )
 
     def test_tune_pitch_with_microtone_up(self):
@@ -393,6 +406,7 @@ class MidiFileConverterTest(unittest.TestCase):
                 "pitch_interval", pitches.DirectPitchInterval(200)
             ),
         ]
+        absolute_tick_start = 1000
         n_ticks = 100
 
         pitchwheel_message_list = []
@@ -402,12 +416,15 @@ class MidiFileConverterTest(unittest.TestCase):
                 - midi_constants.NEUTRAL_PITCH_BEND
             )
             pitchwheel_message = mido.Message(
-                "pitchwheel", channel=midi_channel, pitch=pitch_bend, time=tick
+                "pitchwheel",
+                channel=midi_channel,
+                pitch=pitch_bend,
+                time=tick + absolute_tick_start,
             )
             pitchwheel_message_list.append(pitchwheel_message)
 
         result_midi_pitch, result_pitchwheel_message_tuple = self.converter._tune_pitch(
-            0, n_ticks, pitch, midi_channel
+            absolute_tick_start, absolute_tick_start + n_ticks, pitch, midi_channel
         )
         self.assertEqual(result_midi_pitch, 69)
 
