@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+
+## [0.3.0] - 2022-01-15
+
+### Changed
+- allow endless nested sequential events (if no simultaneous events occur in between)
+
+
 ## [0.2.0] - 2022-01-13
 
 ### Added
