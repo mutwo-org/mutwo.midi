@@ -8,7 +8,7 @@ extras_require = {"testing": ["nose", "coveralls"]}
 
 setuptools.setup(
     name="mutwo.ext-midi",
-    version="0.3.0",
+    version="0.4.0",
     license="GPL",
     description="example extension for event based framework for generative art",
     long_description=long_description,
@@ -18,12 +18,14 @@ setuptools.setup(
     url="https://github.com/mutwo-org/mutwo.ext-midi",
     project_urls={"Documentation": "https://mutwo.readthedocs.io/en/latest/"},
     packages=[
-        package for package in setuptools.find_packages() if package[:5] != "tests"
+        package
+        for package in setuptools.find_namespace_packages(include=["mutwo.*"])
+        if package[:5] != "tests"
     ],
     setup_requires=[],
     install_requires=[
-        "mutwo>=0.49.0, <1.0.0",
-        "mutwo.ext-music>=0.2.0, <1.0.0",
+        "mutwo.ext-core>=0.52.1, <0.53.0",
+        "mutwo.ext-music>=0.6.1, <0.7.0",
         "expenvelope>=0.6.5, <1.0.0",
         "mido>=1.2.9, <2",
         "numpy>=1.18, <2.00",

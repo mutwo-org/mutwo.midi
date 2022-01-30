@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2022-01-30
+
+### Changed
+- package structure to namespace package to apply refactor of mutwo main package
+
 
 ## [0.3.0] - 2022-01-15
 

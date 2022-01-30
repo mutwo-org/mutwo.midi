@@ -8,7 +8,7 @@ There are basically two types of constants:
 
 import expenvelope  # type: ignore
 
-from mutwo.core import parameters
+from mutwo import core_parameters
 
 DEFAULT_AVAILABLE_MIDI_CHANNEL_TUPLE = tuple(range(16))
 """default value for ``available_midi_channel_tuple`` in `MidiFileConverter`"""
@@ -25,9 +25,11 @@ DEFAULT_MIDI_INSTRUMENT_NAME = "Acoustic Grand Piano"
 DEFAULT_N_MIDI_CHANNELS_PER_TRACK = 1
 """default value for ``n_midi_channels_per_track`` in `MidiFileConverter`"""
 
-DEFAULT_TEMPO_ENVELOPE: expenvelope.Envelope = expenvelope.Envelope.from_levels_and_durations(
-    levels=[parameters.tempos.TempoPoint(120, 1), parameters.tempos.TempoPoint(120, 1)],
-    durations=[1],
+DEFAULT_TEMPO_ENVELOPE: expenvelope.Envelope = (
+    expenvelope.Envelope.from_levels_and_durations(
+        levels=[core_parameters.TempoPoint(120, 1), core_parameters.TempoPoint(120, 1)],
+        durations=[1],
+    )
 )
 """default value for ``tempo_envelope`` in `MidiFileConverter`"""
 
@@ -50,3 +52,5 @@ doesn't change"""
 
 MAXIMUM_PITCH_BEND = 16382
 """the highest allowed value for midi pitch bend"""
+
+del expenvelope, core_parameters
