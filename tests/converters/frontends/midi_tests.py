@@ -199,7 +199,7 @@ class EventToMidiFileTest(unittest.TestCase):
                 simultaneous_event
             ),
             tuple(
-                midi_converters.constants.DEFAULT_AVAILABLE_MIDI_CHANNEL_TUPLE
+                midi_converters.configurations.DEFAULT_AVAILABLE_MIDI_CHANNEL_TUPLE
                 for _ in range(n_sequential_events)
             ),
         )
@@ -241,7 +241,7 @@ class EventToMidiFileTest(unittest.TestCase):
                 tempo=self.converter._beats_per_minute_to_beat_length_in_microseconds(
                     level
                 ),
-                time=absolute_time * midi_converters.constants.DEFAULT_TICKS_PER_BEAT,
+                time=absolute_time * midi_converters.configurations.DEFAULT_TICKS_PER_BEAT,
             )
             for absolute_time, level in zip(
                 core_utilities.accumulate_from_zero(tempo_envelope.durations),

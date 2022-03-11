@@ -49,7 +49,7 @@ class SimpleEventToControlMessageTuple(core_converters.SimpleEventToAttribute):
     ):
         if attribute_name is None:
             attribute_name = (
-                midi_converters.constants.DEFAULT_CONTROL_MESSAGE_TUPLE_ATTRIBUTE_NAME
+                midi_converters.configurations.DEFAULT_CONTROL_MESSAGE_TUPLE_ATTRIBUTE_NAME
             )
         super().__init__(attribute_name, exception_value)
 
@@ -68,7 +68,7 @@ class CentDeviationToPitchBendingNumber(core_converters.abc.Converter):
     def __init__(self, maximum_pitch_bend_deviation: typing.Optional[float] = None):
         if maximum_pitch_bend_deviation is None:
             maximum_pitch_bend_deviation = (
-                midi_converters.constants.DEFAULT_MAXIMUM_PITCH_BEND_DEVIATION_IN_CENTS
+                midi_converters.configurations.DEFAULT_MAXIMUM_PITCH_BEND_DEVIATION_IN_CENTS
             )
 
         self._maximum_pitch_bend_deviation = maximum_pitch_bend_deviation
@@ -286,26 +286,26 @@ class EventToMidiFile(core_converters.abc.Converter):
         # TODO(find a less redundant way of setting default values)
         # set current default values if ext_parameters aren't defined
         if midi_file_type is None:
-            midi_file_type = midi_converters.constants.DEFAULT_MIDI_FILE_TYPE
+            midi_file_type = midi_converters.configurations.DEFAULT_MIDI_FILE_TYPE
 
         if available_midi_channel_tuple is None:
             available_midi_channel_tuple = (
-                midi_converters.constants.DEFAULT_AVAILABLE_MIDI_CHANNEL_TUPLE
+                midi_converters.configurations.DEFAULT_AVAILABLE_MIDI_CHANNEL_TUPLE
             )
 
         if n_midi_channels_per_track is None:
             n_midi_channels_per_track = (
-                midi_converters.constants.DEFAULT_N_MIDI_CHANNELS_PER_TRACK
+                midi_converters.configurations.DEFAULT_N_MIDI_CHANNELS_PER_TRACK
             )
 
         if ticks_per_beat is None:
-            ticks_per_beat = midi_converters.constants.DEFAULT_TICKS_PER_BEAT
+            ticks_per_beat = midi_converters.configurations.DEFAULT_TICKS_PER_BEAT
 
         if instrument_name is None:
-            instrument_name = midi_converters.constants.DEFAULT_MIDI_INSTRUMENT_NAME
+            instrument_name = midi_converters.configurations.DEFAULT_MIDI_INSTRUMENT_NAME
 
         if tempo_envelope is None:
-            tempo_envelope = midi_converters.constants.DEFAULT_TEMPO_ENVELOPE
+            tempo_envelope = midi_converters.configurations.DEFAULT_TEMPO_ENVELOPE
 
         # check for correct values of midi specifications (have to be correct to be
         # able to write a readable midi file)
