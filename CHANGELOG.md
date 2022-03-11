@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.0] - 2022-03-11
+
+### Changed
+- some variables in `midi_converters.constants` to `midi_converters.configurations`
+
+### Fixed
+- slow calculation for glissandi / pitch envelopes
+
+
 ## [0.4.0] - 2022-01-30
 
 ### Changed
