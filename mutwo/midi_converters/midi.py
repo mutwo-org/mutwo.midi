@@ -302,7 +302,9 @@ class EventToMidiFile(core_converters.abc.Converter):
             ticks_per_beat = midi_converters.configurations.DEFAULT_TICKS_PER_BEAT
 
         if instrument_name is None:
-            instrument_name = midi_converters.configurations.DEFAULT_MIDI_INSTRUMENT_NAME
+            instrument_name = (
+                midi_converters.configurations.DEFAULT_MIDI_INSTRUMENT_NAME
+            )
 
         if tempo_envelope is None:
             tempo_envelope = midi_converters.configurations.DEFAULT_TEMPO_ENVELOPE
@@ -505,9 +507,26 @@ class EventToMidiFile(core_converters.abc.Converter):
         # We have to use one tick less, so that at
         # "pitch_envelope.value_at(n_ticks)" we already reached the
         # end of the envelope.
+        # We replace the original pitch object with a pitch object that doesn't
+        # start any complex computations when asking for its 'frequency' attribute.
+        pitch_to_tune = music_parameters.DirectPitch(
+            pitch_to_tune.frequency, envelope=pitch_to_tune.envelope
+        )
         pitch_envelope = pitch_to_tune.resolve_envelope(n_ticks - 1)
+        # We will convert the pitch envelope to numerical values to ensure higher performance
+        converted_pitch_envelope = core_events.Envelope(
+            [
+                [absolute_time, value, event.curve_shape]
+                for absolute_time, value, event in zip(
+                    pitch_envelope.absolute_time_tuple,
+                    pitch_envelope.value_tuple,
+                    pitch_envelope,
+                )
+            ]
+        )
         end = 1 if not pitch_envelope.duration else None
-        average_pitch = pitch_envelope.get_average_parameter(end=end)
+        average_cent_value = converted_pitch_envelope.get_average_parameter(end=end)
+        average_pitch = pitch_envelope.value_to_parameter(average_cent_value)
         (
             midi_pitch,
             pitch_bending_number,
@@ -518,7 +537,7 @@ class EventToMidiFile(core_converters.abc.Converter):
             first_pitch_bending_message_time -= 1
 
         pitch_bending_message_list = []
-        if pitch_envelope.is_static:
+        if converted_pitch_envelope.is_static:
             pitch_bending_message_list.append(
                 mido.Message(
                     "pitchwheel",
@@ -530,7 +549,8 @@ class EventToMidiFile(core_converters.abc.Converter):
         else:
             average_pitch_frequency = average_pitch.frequency
             for tick in range(0, n_ticks):
-                frequency = pitch_envelope.parameter_at(tick).frequency
+                abstract_cents = converted_pitch_envelope.parameter_at(tick)
+                frequency = pitch_envelope.value_to_parameter(abstract_cents).frequency
                 cents = music_parameters.abc.Pitch.hertz_to_cents(
                     average_pitch_frequency, frequency
                 )
