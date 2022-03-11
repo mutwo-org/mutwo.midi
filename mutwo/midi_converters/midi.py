@@ -17,9 +17,11 @@ from mutwo import core_events
 from mutwo import core_parameters
 from mutwo import core_utilities
 from mutwo import midi_converters
+from mutwo import music_converters
 from mutwo import music_parameters
 
 __all__ = (
+    "SimpleEventToControlMessageTuple",
     "CentDeviationToPitchBendingNumber",
     "MutwoPitchToMidiPitch",
     "EventToMidiFile",
@@ -35,6 +37,21 @@ MidiNote = int
 PitchBend = int
 
 MidiPitch = tuple[MidiNote, PitchBend]
+
+
+class SimpleEventToControlMessageTuple(core_converters.SimpleEventToAttribute):
+    """Convert :class:`mutwo.core_events.SimpleEvent` to a tuple of control messages"""
+
+    def __init__(
+        self,
+        attribute_name: typing.Optional[str] = None,
+        exception_value: tuple[mido.Message, ...] = tuple([]),
+    ):
+        if attribute_name is None:
+            attribute_name = (
+                midi_converters.constants.DEFAULT_CONTROL_MESSAGE_TUPLE_ATTRIBUTE_NAME
+            )
+        super().__init__(attribute_name, exception_value)
 
 
 class CentDeviationToPitchBendingNumber(core_converters.abc.Converter):
@@ -250,13 +267,13 @@ class EventToMidiFile(core_converters.abc.Converter):
         self,
         simple_event_to_pitch_list: typing.Callable[
             [core_events.SimpleEvent], tuple[music_parameters.abc.Pitch, ...]
-        ] = lambda event: event.pitch_list,  # type: ignore
+        ] = music_converters.SimpleEventToPitchList(),  # type: ignore
         simple_event_to_volume: typing.Callable[
             [core_events.SimpleEvent], music_parameters.abc.Volume
-        ] = lambda event: event.volume,  # type: ignore
+        ] = music_converters.SimpleEventToVolume(),  # type: ignore
         simple_event_to_control_message_tuple: typing.Callable[
             [core_events.SimpleEvent], tuple[mido.Message, ...]
-        ] = lambda event: tuple([]),
+        ] = SimpleEventToControlMessageTuple(),
         midi_file_type: int = None,
         available_midi_channel_tuple: tuple[int, ...] = None,
         distribute_midi_channels: bool = False,

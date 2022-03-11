@@ -53,4 +53,7 @@ doesn't change"""
 MAXIMUM_PITCH_BEND = 16382
 """the highest allowed value for midi pitch bend"""
 
+DEFAULT_CONTROL_MESSAGE_TUPLE_ATTRIBUTE_NAME = "control_message_tuple"
+"""The expected attribute name of a :class:`mutwo.core_events.SimpleEvent` for control messages."""
+
 del expenvelope, core_parameters
