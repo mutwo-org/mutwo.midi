@@ -7,9 +7,11 @@
 
 Midi extension for [mutwo](https://github.com/mutwo-org/mutwo).
 
-This extension implements:
+This extension implements the following subpackage
 
-- `mutwo.ext.converters.frontends.midi` extension package.
+- `mutwo.midi_converters`
+
+This package adds various classes to support the rendering of standard midi files from mutwo events and the conversion of midi files to mutwo events.
 
 ### Installation
 
