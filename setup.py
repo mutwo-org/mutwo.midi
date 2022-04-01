@@ -1,5 +1,12 @@
 import setuptools  # type: ignore
 
+MAJOR, MINOR, PATCH = 0, 5, 2
+VERSION = f"{MAJOR}.{MINOR}.{PATCH}"
+"""This project uses semantic versioning.
+See https://semver.org/
+Before MAJOR = 1, there is no promise for
+backwards compatibility between minor versions.
+"""
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
@@ -8,7 +15,7 @@ extras_require = {"testing": ["nose", "coveralls"]}
 
 setuptools.setup(
     name="mutwo.ext-midi",
-    version="0.5.1",
+    version=VERSION,
     license="GPL",
     description="example extension for event based framework for generative art",
     long_description=long_description,
@@ -25,7 +32,7 @@ setuptools.setup(
     setup_requires=[],
     install_requires=[
         "mutwo.ext-core>=0.57.0, <0.58.0",
-        "mutwo.ext-music>=0.9.0, <0.10.0",
+        "mutwo.ext-music>=0.9.0, <0.11.0",
         "expenvelope>=0.6.5, <1.0.0",
         "mido>=1.2.9, <2",
         "numpy>=1.18, <2.00",
