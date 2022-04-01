@@ -18,3 +18,15 @@ doesn't change"""
 
 MAXIMUM_PITCH_BEND = 16382
 """the highest allowed value for midi pitch bend"""
+
+MidiNote = int
+"""MidiNote type alias"""
+
+PitchBend = int
+"""PitchBend type alias"""
+
+MidiPitch = tuple[MidiNote, PitchBend]
+"""MidiPitch type alias"""
+
+MidiVelocity = int
+"""MidiVelocity type alias"""

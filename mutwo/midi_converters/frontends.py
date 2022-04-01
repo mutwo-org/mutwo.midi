@@ -33,11 +33,6 @@ ConvertableEventUnion = typing.Union[
     core_events.SimultaneousEvent[core_events.SequentialEvent[core_events.SimpleEvent]],
 ]
 
-MidiNote = int
-PitchBend = int
-
-MidiPitch = tuple[MidiNote, PitchBend]
-
 
 class SimpleEventToControlMessageTuple(core_converters.SimpleEventToAttribute):
     """Convert :class:`mutwo.core_events.SimpleEvent` to a tuple of control messages"""
@@ -55,7 +50,7 @@ class SimpleEventToControlMessageTuple(core_converters.SimpleEventToAttribute):
 
 
 class CentDeviationToPitchBendingNumber(core_converters.abc.Converter):
-    """Convert cent deviatiion to midi pitch bend number.
+    """Convert cent deviation to midi pitch bend number.
 
     :param maximum_pitch_bend_deviation: sets the maximum pitch bending range in cents.
         This value depends on the particular used software synthesizer and its settings,
@@ -133,7 +128,7 @@ class MutwoPitchToMidiPitch(core_converters.abc.Converter):
         self,
         mutwo_pitch_to_convert: music_parameters.abc.Pitch,
         midi_note: typing.Optional[int] = None,
-    ) -> MidiPitch:
+    ) -> midi_converters.constants.MidiPitch:
         """Find midi note and pitch bending for given mutwo pitch
 
         :param mutwo_pitch_to_convert: The mutwo pitch which shall be converted.
@@ -502,7 +497,7 @@ class EventToMidiFile(core_converters.abc.Converter):
         absolute_tick_end: int,
         pitch_to_tune: music_parameters.abc.Pitch,
         midi_channel: int,
-    ) -> tuple[MidiNote, tuple[mido.Message, ...]]:
+    ) -> tuple[midi_converters.constants.MidiNote, tuple[mido.Message, ...]]:
         n_ticks = absolute_tick_end - absolute_tick_start
         # We have to use one tick less, so that at
         # "pitch_envelope.value_at(n_ticks)" we already reached the

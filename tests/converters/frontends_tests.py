@@ -100,7 +100,7 @@ class MutwoPitchToMidiPitchTest(unittest.TestCase):
 class EventToMidiFileTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.midi_file_path = "tests/converters/frontends/test.mid"
+        cls.midi_file_path = "tests/converters/test.mid"
         cls.converter = midi_converters.EventToMidiFile()
         cls.sequential_event = core_events.SequentialEvent(
             [

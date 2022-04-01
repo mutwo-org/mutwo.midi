@@ -1,7 +1,8 @@
 from . import configurations
 from . import constants
 
-from .midi import *
+from .backends import *
+from .frontends import *
 
 # Force flat structure
-del midi
+del backends, frontends
