@@ -1,15 +1,19 @@
 """Load midi files to mutwo"""
 
 import abc
+import copy
 import typing
+import warnings
 
 import mido
+import numpy as np
 
 from mutwo import core_constants
 from mutwo import core_converters
 from mutwo import core_events
 from mutwo import core_utilities
 from mutwo import midi_converters
+from mutwo import music_converters
 from mutwo import music_parameters
 
 __all__ = (
@@ -22,14 +26,6 @@ __all__ = (
     "MidiVelocityToWesternVolume",
     "MidiFileToEvent",
 )
-
-
-from mutwo import music_events
-
-
-class MutwoParameterTupleToNoteLike(core_converters.abc.Converter):
-    def convert(self, mutwo_parameter_tuple_to_convert) -> music_events.NoteLike:
-        return music_events.NoteLike()
 
 
 class PitchBendingNumberToPitchInterval(core_converters.abc.Converter):
@@ -178,13 +174,21 @@ class MidiVelocityToWesternVolume(MidiVelocityToMutwoVolume):
         return music_parameters.WesternVolume(dynamic_indicator)
 
 
+MessageTypeToMidiMessageList = dict[
+    str, list[typing.Union[mido.Message, mido.MetaMessage]]
+]
+NotePair = tuple[mido.Message, mido.Message]
+NotePairTuple = tuple[NotePair, ...]
+StartAndStopTupleToNotePairList = dict[tuple[int, int], list[NotePair]]
+
+
 class MidiFileToEvent(core_converters.abc.Converter):
     """Convert a midi file to a mutwo event.
 
     :param mutwo_parameter_tuple_to_simple_event: A callable which converts a
         tuple of mutwo parameters (duration, pitch list, volume) to a
-        :class:`mutwo.core_events.SimpleEvent`. The default value generates
-        :class:`mutwo.music_events.NoteLike`.
+        :class:`mutwo.core_events.SimpleEvent`. In default state mutwo
+         generates a :class:`mutwo.music_events.NoteLike`.
     :type mutwo_parameter_tuple_to_simple_event: typing.Callable[[tuple[core_constants.DurationType, music_parameters.abc.Pitch, music_parameters.abc.Volume]], core_events.SimpleEvent]
     :param midi_pitch_to_mutwo_pitch: Callable object which converts
         midi pitch (integer) to a :class:`mutwo.music_parameters.abc.Pitch`.
@@ -210,16 +214,10 @@ class MidiFileToEvent(core_converters.abc.Converter):
 
     def __init__(
         self,
-        mutwo_parameter_tuple_to_simple_event: typing.Callable[
-            [
-                tuple[
-                    core_constants.DurationType,
-                    list[music_parameters.abc.Pitch],
-                    music_parameters.abc.Volume,
-                ]
-            ],
+        mutwo_parameter_dict_to_simple_event: typing.Callable[
+            [core_converters.MutwoParameterDict],
             core_events.SimpleEvent,
-        ] = MutwoParameterTupleToNoteLike(),
+        ] = music_converters.MutwoParameterDictToNoteLike(),
         midi_pitch_to_mutwo_pitch: typing.Callable[
             [midi_converters.constants.MidiPitch], music_parameters.abc.Pitch
         ] = MidiPitchToMutwoMidiPitch(),
@@ -227,17 +225,245 @@ class MidiFileToEvent(core_converters.abc.Converter):
             [midi_converters.constants.MidiVelocity], music_parameters.abc.Volume
         ] = MidiVelocityToWesternVolume(),
     ):
-        self._mutwo_parameter_tuple_to_simple_event = (
-            mutwo_parameter_tuple_to_simple_event
+        self._mutwo_parameter_dict_to_simple_event = (
+            mutwo_parameter_dict_to_simple_event
         )
         self._midi_pitch_to_mutwo_pitch = midi_pitch_to_mutwo_pitch
         self._midi_velocity_to_mutwo_volume = midi_velocity_to_mutwo_volume
 
+    # ###################################################################### #
+    #                          static methods                                #
+    # ###################################################################### #
+
+    @staticmethod
+    def _get_message_type_to_midi_message_list(
+        midi_file_to_convert: mido.MidiFile,
+    ) -> MessageTypeToMidiMessageList:
+        message_type_to_midi_message_list = {}
+        for midi_track in midi_file_to_convert.tracks:
+            absolute_tick = 0
+            for midi_message in midi_track:
+                message_type = midi_message.type
+                if message_type not in message_type_to_midi_message_list:
+                    message_type_to_midi_message_list.update({message_type: []})
+                absolute_tick += midi_message.time
+                midi_message_with_absolute_tick = copy.deepcopy(midi_message)
+                midi_message_with_absolute_tick.time = int(absolute_tick)
+                message_type_to_midi_message_list[message_type].append(
+                    midi_message_with_absolute_tick
+                )
+        for midi_message_list in message_type_to_midi_message_list.values():
+            midi_message_list.sort(key=lambda midi_message: midi_message.time)
+        return message_type_to_midi_message_list
+
+    @staticmethod
+    def _get_note_off_partner(
+        note_on_message: typing.Union[mido.Message, mido.MetaMessage],
+        note_off_message_list: list[typing.Union[mido.Message, mido.MetaMessage]],
+    ) -> typing.Optional[mido.Message]:
+        def is_valid_note_off_message(
+            note_off_message: typing.Union[mido.Message, mido.MetaMessage]
+        ) -> bool:
+            test_list = [
+                note_off_message.time >= note_on_message.time,  # type: ignore
+                note_on_message.note == note_off_message.note,  # type: ignore
+                note_on_message.channel == note_off_message.channel,  # type: ignore
+            ]
+            return all(test_list)
+
+        try:
+            note_off_message = next(
+                filter(is_valid_note_off_message, note_off_message_list)
+            )
+            assert isinstance(note_off_message, mido.Message)
+        except StopIteration:
+            warnings.warn(
+                (
+                    "Invalid midi file: "
+                    "Found note on message without any suitable "
+                    "note off message partner. The note on message is: "
+                    f"'{note_on_message}'."
+                ),
+                RuntimeWarning,
+            )
+            note_off_message = None
+
+        return note_off_message
+
+    @staticmethod
+    def _get_note_pair_tuple(
+        message_type_to_midi_message_list: MessageTypeToMidiMessageList,
+    ) -> NotePairTuple:
+        try:
+            note_on_message_list = message_type_to_midi_message_list["note_on"]
+            note_off_message_list = copy.deepcopy(
+                message_type_to_midi_message_list["note_off"]
+            )
+        except KeyError:
+            return tuple([])
+
+        note_pair_list = []
+        for note_on_message in note_on_message_list:
+            note_off_message = MidiFileToEvent._get_note_off_partner(
+                note_on_message, note_off_message_list
+            )
+            if note_off_message is not None:
+                note_pair = (note_on_message, note_off_message)
+                note_pair_list.append(note_pair)
+                del note_off_message_list[note_off_message_list.index(note_off_message)]
+
+        note_pair_list.sort(key=lambda note_pair: note_pair[0].time)
+        return tuple(note_pair_list)
+
+    @staticmethod
+    def _note_pair_tuple_to_start_and_stop_tuple_to_note_pair_list(
+        note_pair_tuple: NotePairTuple,
+    ) -> StartAndStopTupleToNotePairList:
+        start_and_stop_tuple_to_note_pair_list = {}
+        for note_pair in note_pair_tuple:
+            start_and_stop_tuple = tuple(
+                note_message.time for note_message in note_pair  # type: ignore
+            )
+            if start_and_stop_tuple not in start_and_stop_tuple_to_note_pair_list:
+                start_and_stop_tuple_to_note_pair_list.update(
+                    {start_and_stop_tuple: []}
+                )
+            start_and_stop_tuple_to_note_pair_list[start_and_stop_tuple].append(
+                note_pair
+            )
+        return start_and_stop_tuple_to_note_pair_list
+
+    @staticmethod
+    def _add_simple_event_to_sequential_event(
+        sequential_event: core_events.SequentialEvent,
+        start: int,
+        simple_event: core_events.SimpleEvent,
+    ):
+        difference = start - sequential_event.duration
+        if difference > 0:
+            rest = core_events.SimpleEvent(difference)
+            sequential_event.append(rest)
+        sequential_event.append(simple_event)
+
+    @staticmethod
+    def _tick_to_duration(
+        tick: int, ticks_per_beat: int
+    ) -> core_constants.DurationType:
+        return tick / ticks_per_beat
+
+    # ###################################################################### #
+    #                          private methods                               #
+    # ###################################################################### #
+
+    def _note_pair_list_to_simple_event(
+        self, note_pair_list: list[NotePair], ticks_per_beat: int
+    ) -> core_events.SimpleEvent:
+        midi_pitch_list = []
+        velocity_list = []
+        for note_pair in note_pair_list:
+            note_on, _ = note_pair
+            # TODO(take pitch bend into account!)
+            midi_pitch_list.append((note_on.note, 0))  # type: ignore
+            velocity_list.append(note_on.velocity)  # type: ignore
+
+        average_velocity = int(np.average(velocity_list))
+        mutwo_volume = self._midi_velocity_to_mutwo_volume(average_velocity)
+
+        mutwo_pitch_list = [
+            self._midi_pitch_to_mutwo_pitch(midi_pitch)
+            for midi_pitch in midi_pitch_list
+        ]
+
+        note_on, note_off = note_pair_list[0]
+        tick = note_off.time - note_on.time  # type: ignore
+        duration = MidiFileToEvent._tick_to_duration(tick, ticks_per_beat)
+
+        # Use default values defined in configurations modules to ensure
+        # stability in case user changes the values.
+        mutwo_parameter_dict = {
+            core_converters.configurations.DEFAULT_DURATION_TO_SEARCH_NAME: duration,
+            music_converters.configurations.DEFAULT_PITCH_LIST_TO_SEARCH_NAME: mutwo_pitch_list,
+            music_converters.configurations.DEFAULT_VOLUME_TO_SEARCH_NAME: mutwo_volume,
+        }
+        return self._mutwo_parameter_dict_to_simple_event(mutwo_parameter_dict)
+
+    def _note_pair_tuple_to_simultaneous_event(
+        self, note_pair_tuple: NotePairTuple, ticks_per_beat: int
+    ) -> core_events.SimultaneousEvent[
+        core_events.SequentialEvent[core_events.SimpleEvent]
+    ]:
+        simultaneous_event = core_events.SimultaneousEvent([])
+
+        start_and_stop_tuple_to_note_pair_list = (
+            MidiFileToEvent._note_pair_tuple_to_start_and_stop_tuple_to_note_pair_list(
+                note_pair_tuple
+            )
+        )
+        for start_and_stop_tuple in sorted(
+            start_and_stop_tuple_to_note_pair_list.keys(),
+            key=lambda start_and_stop_tuple: start_and_stop_tuple[0],
+        ):
+            start_tick, _ = start_and_stop_tuple
+            start = self._tick_to_duration(start_tick, ticks_per_beat)
+            note_pair_list = start_and_stop_tuple_to_note_pair_list[
+                start_and_stop_tuple
+            ]
+            simple_event = self._note_pair_list_to_simple_event(
+                note_pair_list, ticks_per_beat
+            )
+            is_added = False
+            for sequential_event in simultaneous_event:
+                duration = sequential_event.duration
+                difference = start - duration
+                if difference >= 0:
+                    self._add_simple_event_to_sequential_event(
+                        sequential_event, start, simple_event
+                    )
+                    is_added = True
+                    break
+            if not is_added:
+                simultaneous_event.append(core_events.SequentialEvent([]))
+                self._add_simple_event_to_sequential_event(
+                    simultaneous_event[-1], start, simple_event
+                )
+
+        return simultaneous_event
+
+    def _note_pair_tuple_and_set_tempo_message_list_to_simultaneous_event(
+        self,
+        note_pair_tuple: NotePairTuple,
+        set_tempo_message_list: list[typing.Union[mido.Message, mido.MetaMessage]],
+        ticks_per_beat: int,
+    ) -> core_events.SimultaneousEvent[
+        core_events.SequentialEvent[core_events.SimpleEvent]
+    ]:
+        simultaneous_event = self._note_pair_tuple_to_simultaneous_event(
+            note_pair_tuple, ticks_per_beat
+        )
+        # TODO(apply tempo messages)
+        return simultaneous_event
+
     def _midi_file_to_mutwo_event(
         self, midi_file_to_convert: mido.MidiFile
     ) -> core_events.abc.Event:
-        for midi_track in midi_file_to_convert.tracks:
-            pass
+        ticks_per_beat = midi_file_to_convert.ticks_per_beat
+        message_type_to_midi_message_list = (
+            MidiFileToEvent._get_message_type_to_midi_message_list(midi_file_to_convert)
+        )
+        note_pair_tuple = MidiFileToEvent._get_note_pair_tuple(
+            message_type_to_midi_message_list
+        )
+        try:
+            set_tempo_message_list = message_type_to_midi_message_list["set_tempo"]
+        except KeyError:
+            set_tempo_message_list = []
+        return self._note_pair_tuple_and_set_tempo_message_list_to_simultaneous_event(
+            note_pair_tuple, set_tempo_message_list, ticks_per_beat
+        )
+
+    # ###################################################################### #
+    #                          public methods                                #
+    # ###################################################################### #
 
     def convert(
         self, midi_file_path_or_mido_midi_file: typing.Union[str, mido.MidiFile]
@@ -245,7 +471,7 @@ class MidiFileToEvent(core_converters.abc.Converter):
         """Convert midi file to mutwo event.
 
         :param midi_file_path_or_mido_midi_file: The midi file which shall
-            be converted. Can either be a file name or a :class:`MidiFile`
+            be converted. Can either be a file path or a :class:`MidiFile`
             object from the `mido <https://github.com/mido/mido>`_ package.
         :type midi_file_path_or_mido_midi_file: typing.Union[str, mido.MidiFile]
         """
@@ -262,7 +488,7 @@ class MidiFileToEvent(core_converters.abc.Converter):
                     f"'{type(midi_file_path_or_mido_midi_file)}' for"
                     "parameter 'midi_file_path_or_mido_midi_file'! "
                     "Please enter either a file name (str) or a MidiFile"
-                    " (from mido package)."
+                    " object (from the mido package)."
                 )
             )
         return self._midi_file_to_mutwo_event(midi_file)

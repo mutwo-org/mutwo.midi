@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.6.0] - 2022-04-02
+
+### Added
+- backends module to convert midi files to mutwo event (experimental state):
+    - `MidiFileToEvent`
+    - `MidiVelocityToWesternVolume`
+    - `MidiVelocityToMutwoVolume`
+    - `MidiPitchToMutwoMidiPitch`
+    - `MidiPitchToDirectPitch`
+    - `MidiPitchToMutwoPitch`
+    - `PitchBendingNumberToDirectPitchInterval`
+    - `PitchBendingNumberToPitchInterval`
+
+
 ## [0.5.0] - 2022-03-11
 
 ### Changed

@@ -1,6 +1,6 @@
 import setuptools  # type: ignore
 
-MAJOR, MINOR, PATCH = 0, 5, 2
+MAJOR, MINOR, PATCH = 0, 6, 0
 VERSION = f"{MAJOR}.{MINOR}.{PATCH}"
 """This project uses semantic versioning.
 See https://semver.org/
@@ -17,7 +17,7 @@ setuptools.setup(
     name="mutwo.ext-midi",
     version=VERSION,
     license="GPL",
-    description="example extension for event based framework for generative art",
+    description="midi extension for event based framework mutwo",
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="Levin Eric Zimmermann",
@@ -31,8 +31,8 @@ setuptools.setup(
     ],
     setup_requires=[],
     install_requires=[
-        "mutwo.ext-core>=0.57.0, <0.58.0",
-        "mutwo.ext-music>=0.9.0, <0.11.0",
+        "mutwo.ext-core>=0.58.0, <0.59.0",
+        "mutwo.ext-music>=0.11.0, <0.12.0",
         "expenvelope>=0.6.5, <1.0.0",
         "mido>=1.2.9, <2",
         "numpy>=1.18, <2.00",

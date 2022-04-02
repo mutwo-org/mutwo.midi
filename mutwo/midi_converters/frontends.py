@@ -78,7 +78,8 @@ class CentDeviationToPitchBendingNumber(core_converters.abc.Converter):
             f"bending with cent_deviation = {cent_deviation}. "
             "Mutwo normalized pitch bending to the allowed border."
             " Increase the 'maximum_pitch_bend_deviation' argument in the "
-            "CentDeviationToPitchBendingNumber instance."
+            "CentDeviationToPitchBendingNumber instance.",
+            RuntimeWarning,
         )
 
     def convert(
@@ -392,18 +393,19 @@ class EventToMidiFile(core_converters.abc.Converter):
             beat_length_in_microseconds = (
                 midi_converters.constants.MAXIMUM_MICROSECONDS_PER_BEAT
             )
-            message = "TempoPoint '{}' is too slow for Standard Midi Files. ".format(
-                tempo_point
+            beats_per_minute = mido.tempo2bpm(
+                midi_converters.constants.MAXIMUM_MICROSECONDS_PER_BEAT
             )
-            message += (
-                "The slowest possible tempo is '{0}' BPM. Tempo has been set to"
-                " '{0}' BPM.".format(
-                    mido.tempo2bpm(
-                        midi_converters.constants.MAXIMUM_MICROSECONDS_PER_BEAT
-                    )
-                )
+            warnings.warn(
+                (
+                    f"TempoPoint '{tempo_point}' is too slow for "
+                    "Standard Midi Files. "
+                    f"The slowest possible tempo is '{beats_per_minute}' BPM."
+                    "Tempo has been set to"
+                    f" '{beats_per_minute}' BPM."
+                ),
+                RuntimeWarning,
             )
-            warnings.warn(message)
 
         return beat_length_in_microseconds
 
