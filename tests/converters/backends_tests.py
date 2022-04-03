@@ -51,7 +51,7 @@ class PitchBendingNumberToDirectPitchIntervalTest(unittest.TestCase):
             round(
                 self.pitch_bending_number_to_direct_pitch_interval0.convert(
                     int(8191 // 2)
-                ).cents
+                ).interval
             ),
             100,
         )
@@ -59,7 +59,7 @@ class PitchBendingNumberToDirectPitchIntervalTest(unittest.TestCase):
             round(
                 self.pitch_bending_number_to_direct_pitch_interval0.convert(
                     -int(8191 // 2)
-                ).cents
+                ).interval
             ),
             -100,
         )
@@ -68,7 +68,7 @@ class PitchBendingNumberToDirectPitchIntervalTest(unittest.TestCase):
             round(
                 self.pitch_bending_number_to_direct_pitch_interval1.convert(
                     int(8191 // 2)
-                ).cents
+                ).interval
             ),
             600,
         )
