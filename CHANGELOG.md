@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2022-08-12
+
+### Changed
+- Package name from `mutwo.ext-midi` to `mutwo.midi`
+
+
 ## [0.6.0] - 2022-04-02
 
 ### Added
