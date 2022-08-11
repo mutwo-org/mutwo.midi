@@ -8,7 +8,6 @@ import operator
 import typing
 import warnings
 
-import expenvelope  # type: ignore
 import mido  # type: ignore
 
 from mutwo import core_constants
@@ -240,7 +239,7 @@ class EventToMidiFile(core_converters.abc.Converter):
         value of mutwo is 120 BPM (this is also the value that is assumed by any
         midi-file-reading-software if no tempo has been specified). Tempo changes
         are supported (and will be written to the resulting midi file).
-    :type tempo_envelope: expenvelope.Envelope
+    :type tempo_envelope: core_events.TempoEnvelope
 
     **Example**:
 
@@ -277,7 +276,7 @@ class EventToMidiFile(core_converters.abc.Converter):
         mutwo_pitch_to_midi_pitch: MutwoPitchToMidiPitch = MutwoPitchToMidiPitch(),
         ticks_per_beat: typing.Optional[int] = None,
         instrument_name: typing.Optional[str] = None,
-        tempo_envelope: typing.Optional[expenvelope.Envelope] = None,
+        tempo_envelope: typing.Optional[core_events.TempoEnvelope] = None,
     ):
         # TODO(find a less redundant way of setting default values)
         # set current default values if ext_parameters aren't defined
@@ -459,22 +458,31 @@ class EventToMidiFile(core_converters.abc.Converter):
 
         return available_midi_channel_tuple_per_sequential_event
 
-    def _beats_to_ticks(self, absolute_time: core_constants.DurationType) -> int:
-        return int(self._ticks_per_beat * absolute_time)
+    def _beats_to_ticks(
+        self, absolute_time: typing.Union[core_parameters.abc.Duration, typing.Any]
+    ) -> int:
+        absolute_time = core_events.configurations.UNKNOWN_OBJECT_TO_DURATION(
+            absolute_time
+        )
+        return int(self._ticks_per_beat * absolute_time.duration)
 
     # ###################################################################### #
     #             methods for converting mutwo data to midi data             #
     # ###################################################################### #
 
     def _tempo_envelope_to_midi_message_tuple(
-        self, tempo_envelope: expenvelope.Envelope
+        self, tempo_envelope: core_events.TempoEnvelope
     ) -> tuple[mido.MetaMessage, ...]:
         """Converts a SequentialEvent of ``EnvelopeEvent`` to midi Tempo messages."""
 
-        offset_iterator = core_utilities.accumulate_from_zero(tempo_envelope.durations)
+        offset_iterator = core_utilities.accumulate_from_n(
+            tempo_envelope.get_parameter("duration"), core_parameters.DirectDuration(0)
+        )
 
         midi_message_list = []
-        for absolute_time, tempo_point in zip(offset_iterator, tempo_envelope.levels):
+        for absolute_time, tempo_point in zip(
+            offset_iterator, tempo_envelope.value_tuple
+        ):
             absolute_tick = self._beats_to_ticks(absolute_time)
             beat_length_in_microseconds = (
                 self._beats_per_minute_to_beat_length_in_microseconds(tempo_point)
@@ -500,17 +508,17 @@ class EventToMidiFile(core_converters.abc.Converter):
         pitch_to_tune: music_parameters.abc.Pitch,
         midi_channel: int,
     ) -> tuple[midi_converters.constants.MidiNote, tuple[mido.Message, ...]]:
-        n_ticks = absolute_tick_end - absolute_tick_start
+        tick_count = absolute_tick_end - absolute_tick_start
         # We have to use one tick less, so that at
-        # "pitch_envelope.value_at(n_ticks)" we already reached the
+        # "pitch_envelope.value_at(tick_count)" we already reached the
         # end of the envelope.
         # We replace the original pitch object with a pitch object that doesn't
         # start any complex computations when asking for its 'frequency' attribute.
         pitch_to_tune = music_parameters.DirectPitch(
             pitch_to_tune.frequency, envelope=pitch_to_tune.envelope
         )
-        pitch_envelope = pitch_to_tune.resolve_envelope(n_ticks - 1)
-        # We will convert the pitch envelope to numerical values to ensure higher performance
+        pitch_envelope = pitch_to_tune.resolve_envelope(tick_count - 1)
+        # We will convert the pitch envelope to numerical values for better performance
         converted_pitch_envelope = core_events.Envelope(
             [
                 [absolute_time, value, event.curve_shape]
@@ -545,7 +553,7 @@ class EventToMidiFile(core_converters.abc.Converter):
             )
         else:
             average_pitch_frequency = average_pitch.frequency
-            for tick in range(0, n_ticks):
+            for tick in range(0, tick_count):
                 abstract_cents = converted_pitch_envelope.parameter_at(tick)
                 frequency = pitch_envelope.value_to_parameter(abstract_cents).frequency
                 cents = music_parameters.abc.Pitch.hertz_to_cents(
@@ -600,7 +608,7 @@ class EventToMidiFile(core_converters.abc.Converter):
 
     def _extracted_data_to_midi_message_tuple(
         self,
-        absolute_time: core_constants.Real,
+        absolute_time: core_parameters.abc.Duration,
         duration: core_constants.DurationType,
         available_midi_channel_tuple_cycle: typing.Iterator,
         pitch_list: tuple[music_parameters.abc.Pitch, ...],
@@ -645,7 +653,7 @@ class EventToMidiFile(core_converters.abc.Converter):
     def _simple_event_to_midi_message_tuple(
         self,
         simple_event: core_events.SimpleEvent,
-        absolute_time: core_constants.Real,
+        absolute_time: core_parameters.abc.Duration,
         available_midi_channel_tuple_cycle: typing.Iterator,
     ) -> tuple[mido.Message, ...]:
         """Converts ``SimpleEvent`` (or any object that inherits from ``SimpleEvent``).
@@ -673,6 +681,8 @@ class EventToMidiFile(core_converters.abc.Converter):
                 is_rest = True
                 break
 
+        print(extracted_data_list)
+
         # if not all relevant data could be extracted, simply ignore the
         # event
         if is_rest:
@@ -685,6 +695,11 @@ class EventToMidiFile(core_converters.abc.Converter):
             available_midi_channel_tuple_cycle,
             *extracted_data_list,  # type: ignore
         )
+        print(midi_message_tuple)
+        try:
+            print(midi_message_tuple[0].note)
+        except Exception:
+            pass
         return midi_message_tuple
 
     def _sequential_event_to_midi_message_tuple(
@@ -693,7 +708,7 @@ class EventToMidiFile(core_converters.abc.Converter):
             typing.Union[core_events.SimpleEvent, core_events.SequentialEvent]
         ],
         available_midi_channel_tuple: tuple[int, ...],
-        absolute_time: float = 0,
+        absolute_time: core_parameters.abc.Duration = core_parameters.DirectDuration(0),
     ) -> tuple[mido.Message, ...]:
         """Iterates through the ``SequentialEvent`` and converts each ``SimpleEvent``.
 

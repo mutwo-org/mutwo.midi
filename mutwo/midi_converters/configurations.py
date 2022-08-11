@@ -1,7 +1,6 @@
 """Configure the midi converters behaviour"""
 
-import expenvelope  # type: ignore
-
+from mutwo import core_events
 from mutwo import core_parameters
 
 DEFAULT_AVAILABLE_MIDI_CHANNEL_TUPLE = tuple(range(16))
@@ -19,11 +18,8 @@ DEFAULT_MIDI_INSTRUMENT_NAME = "Acoustic Grand Piano"
 DEFAULT_N_MIDI_CHANNELS_PER_TRACK = 1
 """default value for ``n_midi_channels_per_track`` in `MidiFileConverter`"""
 
-DEFAULT_TEMPO_ENVELOPE: expenvelope.Envelope = (
-    expenvelope.Envelope.from_levels_and_durations(
-        levels=[core_parameters.TempoPoint(120, 1), core_parameters.TempoPoint(120, 1)],
-        durations=[1],
-    )
+DEFAULT_TEMPO_ENVELOPE: core_events.TempoEnvelope = core_events.TempoEnvelope(
+    ((0, core_parameters.TempoPoint(120, 1)), (1, core_parameters.TempoPoint(120, 1))),
 )
 """default value for ``tempo_envelope`` in `MidiFileConverter`"""
 
@@ -34,4 +30,4 @@ DEFAULT_CONTROL_MESSAGE_TUPLE_ATTRIBUTE_NAME = "control_message_tuple"
 """The expected attribute name of a :class:`mutwo.core_events.SimpleEvent` for control messages."""
 
 
-del expenvelope, core_parameters
+del core_events, core_parameters

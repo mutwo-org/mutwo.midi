@@ -8,9 +8,14 @@ import warnings
 import mido
 import numpy as np
 
-from mutwo import core_constants
+try:
+    import quicktions as fractions
+except ImportError:
+    import fractions
+
 from mutwo import core_converters
 from mutwo import core_events
+from mutwo import core_parameters
 from mutwo import core_utilities
 from mutwo import midi_converters
 from mutwo import music_converters
@@ -339,7 +344,7 @@ class MidiFileToEvent(core_converters.abc.Converter):
         start: int,
         simple_event: core_events.SimpleEvent,
     ):
-        difference = start - sequential_event.duration
+        difference = start - sequential_event.duration.duration
         if difference > 0:
             rest = core_events.SimpleEvent(difference)
             sequential_event.append(rest)
@@ -348,8 +353,8 @@ class MidiFileToEvent(core_converters.abc.Converter):
     @staticmethod
     def _tick_to_duration(
         tick: int, ticks_per_beat: int
-    ) -> core_constants.DurationType:
-        return tick / ticks_per_beat
+    ) -> core_parameters.DirectDuration:
+        return core_parameters.DirectDuration(fractions.Fraction(tick, ticks_per_beat))
 
     # ###################################################################### #
     #                          private methods                               #

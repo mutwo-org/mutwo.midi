@@ -2,11 +2,11 @@ import itertools
 import os
 import unittest
 
-import expenvelope  # type: ignore
 import mido  # type: ignore
 import numpy as np  # type: ignore
 
 from mutwo import core_events
+from mutwo import core_parameters
 from mutwo import core_utilities
 from mutwo import music_events
 from mutwo import music_parameters
@@ -232,26 +232,30 @@ class EventToMidiFileTest(unittest.TestCase):
                 )
 
     def test_tempo_envelope_to_midi_messages(self):
-        tempo_envelope = expenvelope.Envelope.from_points(
-            (2, 60), (0, 60), (3, 40), (0, 40), (2, 100)
+        tempo_envelope = core_events.TempoEnvelope(
+            ((0, 60), (2, 60), (2, 40), (5, 40), (5, 100))
         )
-        midi_messages = tuple(
+        midi_message_tuple = tuple(
             mido.MetaMessage(
                 "set_tempo",
                 tempo=self.converter._beats_per_minute_to_beat_length_in_microseconds(
                     level
                 ),
-                time=absolute_time * midi_converters.configurations.DEFAULT_TICKS_PER_BEAT,
+                time=absolute_time.duration_in_floats
+                * midi_converters.configurations.DEFAULT_TICKS_PER_BEAT,
             )
             for absolute_time, level in zip(
-                core_utilities.accumulate_from_zero(tempo_envelope.durations),
-                tempo_envelope.levels,
+                core_utilities.accumulate_from_n(
+                    tempo_envelope.get_parameter("duration"),
+                    core_parameters.DirectDuration(0),
+                ),
+                tempo_envelope.value_tuple,
             )
         )
 
         self.assertEqual(
             self.converter._tempo_envelope_to_midi_message_tuple(tempo_envelope),
-            midi_messages,
+            midi_message_tuple,
         )
 
     def test_note_information_to_midi_messages(self):
@@ -688,8 +692,9 @@ class EventToMidiFileTest(unittest.TestCase):
 
         converter.convert(self.sequential_event, self.midi_file_path)
         midi_file = mido.MidiFile(self.midi_file_path)
-        n_control_message = 0
-        n_note_on_messages = 0
+        control_message_index = 0
+        note_on_message_index = 0
+        print([message.note for message in midi_file if hasattr(message, 'note')])
         for message in midi_file:
             if message.type == "note_on":
                 self.assertAlmostEqual(message.note, constant_pitch.midi_pitch_number)
@@ -697,13 +702,13 @@ class EventToMidiFileTest(unittest.TestCase):
                     message.velocity,
                     constant_volume.midi_velocity,
                 )
-                n_note_on_messages += 1
+                note_on_message_index += 1
             elif message.type == "control_change":
                 self.assertEqual(message.value, constant_control_message.value)
-                n_control_message += 1
+                control_message_index += 1
 
-        self.assertEqual(n_note_on_messages, len(self.sequential_event))
-        self.assertEqual(n_control_message, len(self.sequential_event))
+        self.assertEqual(note_on_message_index, len(self.sequential_event))
+        self.assertEqual(control_message_index, len(self.sequential_event))
 
         os.remove(self.midi_file_path)
 
