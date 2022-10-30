@@ -16,8 +16,8 @@ in
     src = fetchFromGitHub {
       owner = "mutwo-org";
       repo = name;
-      rev = "82c81a215c406aae2724ada3033c4ffabc105aff";
-      sha256 = "sha256-hQzj8S2PNKYjcPhc5kvHKTjgBc20tdsN+4iHhWhHl9Y=";
+      rev = "f7d2fec7fc3cc1149f23d410a3975729b8f36219";
+      sha256 = "sha256-e6opdzs4gU1FYgAubvkpDT/fMjlzMxVxA5wmUgNekdQ=";
     };
     propagatedBuildInputs = [
       mutwo-core
