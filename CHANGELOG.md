@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.9.0] - 2022-30-12
+
+### Changed
+- `n_midi_channels_per_track` to `midi_channel_count_per_track`
+- `EventToMidiFile.convert()` always returns a `mido.MidiFile`
+- `EventToMidiFile.convert` can be called without any `path` argument (then it will simply return the `MidiFile` object, but don't write anything to disk).
+
+
 ## [0.8.0] - 2022-08-12
 
 ### Changed

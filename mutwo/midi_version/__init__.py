@@ -1,4 +1,4 @@
-MAJOR, MINOR, PATCH = 0, 8, 1
+MAJOR, MINOR, PATCH = 0, 9, 0
 
 VERSION = f"{MAJOR}.{MINOR}.{PATCH}"
 """The version of the package ``mutwo.midi``."""
