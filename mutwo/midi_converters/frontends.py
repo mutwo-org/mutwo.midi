@@ -220,12 +220,12 @@ class EventToMidiFile(core_converters.abc.Converter):
         higher than the amount of available channels, mutwo will silently cycle through
         the list of available midi channel.
     :type distribute_midi_channels: bool
-    :param n_midi_channels_per_track: This parameter is only relevant for
+    :param midi_channel_count_per_track: This parameter is only relevant for
         distribute_midi_channels == True. It sets how many midi channels are assigned
         to one SequentialEvent. If microtonal chords shall be played by
         one SequentialEvent (via pitch bending messages) a higher number than 1 is
         recommended. Defaults to 1.
-    :type n_midi_channels_per_track: int
+    :type midi_channel_count_per_track: int
     :param mutwo_pitch_to_midi_pitch: class to convert from mutwo pitches
         to midi pitches. Default to :class:`MutwoPitchToMidiPitch`.
     :type mutwo_pitch_to_midi_pitch: :class:`MutwoPitchToMidiPitch`
@@ -272,7 +272,7 @@ class EventToMidiFile(core_converters.abc.Converter):
         midi_file_type: int = None,
         available_midi_channel_tuple: tuple[int, ...] = None,
         distribute_midi_channels: bool = False,
-        n_midi_channels_per_track: typing.Optional[int] = None,
+        midi_channel_count_per_track: typing.Optional[int] = None,
         mutwo_pitch_to_midi_pitch: MutwoPitchToMidiPitch = MutwoPitchToMidiPitch(),
         ticks_per_beat: typing.Optional[int] = None,
         instrument_name: typing.Optional[str] = None,
@@ -288,9 +288,9 @@ class EventToMidiFile(core_converters.abc.Converter):
                 midi_converters.configurations.DEFAULT_AVAILABLE_MIDI_CHANNEL_TUPLE
             )
 
-        if n_midi_channels_per_track is None:
-            n_midi_channels_per_track = (
-                midi_converters.configurations.DEFAULT_N_MIDI_CHANNELS_PER_TRACK
+        if midi_channel_count_per_track is None:
+            midi_channel_count_per_track = (
+                midi_converters.configurations.DEFAULT_MIDI_CHANNEL_COUNT_PER_TRACK
             )
 
         if ticks_per_beat is None:
@@ -319,7 +319,7 @@ class EventToMidiFile(core_converters.abc.Converter):
         )
 
         self._distribute_midi_channels = distribute_midi_channels
-        self._n_midi_channels_per_track = n_midi_channels_per_track
+        self._midi_channel_count_per_track = midi_channel_count_per_track
         self._available_midi_channel_tuple = available_midi_channel_tuple
         self._midi_file_type = midi_file_type
         self._mutwo_pitch_to_midi_pitch = mutwo_pitch_to_midi_pitch
@@ -446,7 +446,7 @@ class EventToMidiFile(core_converters.abc.Converter):
             available_midi_channel_tuple_per_sequential_event = tuple(
                 tuple(
                     next(available_midi_channel_tuple_cycle)
-                    for _ in range(self._n_midi_channels_per_track)
+                    for _ in range(self._midi_channel_count_per_track)
                 )
                 for _ in simultaneous_event
             )
