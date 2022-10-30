@@ -694,7 +694,6 @@ class EventToMidiFileTest(unittest.TestCase):
         midi_file = mido.MidiFile(self.midi_file_path)
         control_message_index = 0
         note_on_message_index = 0
-        print([message.note for message in midi_file if hasattr(message, 'note')])
         for message in midi_file:
             if message.type == "note_on":
                 self.assertAlmostEqual(message.note, constant_pitch.midi_pitch_number)
