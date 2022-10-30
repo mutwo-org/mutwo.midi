@@ -183,7 +183,7 @@ class EventToMidiFileTest(unittest.TestCase):
     def test_find_available_midi_channel_tuple(self):
         converter0 = midi_converters.EventToMidiFile()
         converter1 = midi_converters.EventToMidiFile(
-            distribute_midi_channels=True, n_midi_channels_per_track=1
+            distribute_midi_channels=True, midi_channel_count_per_track=1
         )
 
         n_sequential_events = 17
