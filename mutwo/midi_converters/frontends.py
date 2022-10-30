@@ -894,15 +894,18 @@ class EventToMidiFile(core_converters.abc.Converter):
     #               public methods for interaction with the user             #
     # ###################################################################### #
 
-    def convert(self, event_to_convert: ConvertableEventUnion, path: str) -> None:
+    def convert(self, event_to_convert: ConvertableEventUnion, path: typing.Optional[str] = None) -> mido.MidiFile:
         """Render a Midi file to the converters path attribute from the given event.
 
         :param event_to_convert: The given event that shall be translated
             to a Midi file.
         :type event_to_convert: typing.Union[core_events.SimpleEvent, core_events.SequentialEvent[core_events.SimpleEvent], core_events.SimultaneousEvent[core_events.SequentialEvent[core_events.SimpleEvent]]]
-        :param path: where to write the midi file. The typical file type extension '.mid'
-            is recommended, but not mandatory.
-        :type path: str
+        :param path: If this is a string the method will write a midi
+            file to the given path. The typical file type extension '.mid'
+            is recommended, but not mandatory. If set to `None` the
+            method won't write a midi file to the disk, but it will simply
+            return a :class:`mido.MidiFile` object. Default to `None`.
+        :type path: typing.Optional[str]
 
         The following example generates a midi file that contains a simple ascending
         pentatonic scale:
@@ -939,4 +942,9 @@ class EventToMidiFile(core_converters.abc.Converter):
         """
 
         midi_file = self._event_to_midi_file(event_to_convert)
-        midi_file.save(filename=path)
+
+        if path is not None:
+            midi_file.save(filename=path)
+
+        return midi_file
+

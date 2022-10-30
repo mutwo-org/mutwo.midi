@@ -745,6 +745,23 @@ class EventToMidiFileTest(unittest.TestCase):
 
         pass
 
+    def test_convert_without_path(self):
+        """No midi file should have been created"""
+        simple_event = core_events.SimpleEvent(1)
+        midi_file = self.converter.convert(simple_event)
+        self.assertFalse(os.path.exists(self.midi_file_path))
+        self.assertTrue(midi_file)
+        self.assertIsInstance(midi_file, mido.MidiFile)
+
+    def test_convert_with_path(self):
+        """A midi file should have been created"""
+        simple_event = core_events.SimpleEvent(1)
+        midi_file = self.converter.convert(simple_event, self.midi_file_path)
+        self.assertTrue(os.path.exists(self.midi_file_path))
+        self.assertTrue(midi_file)
+        self.assertIsInstance(midi_file, mido.MidiFile)
+        os.remove(self.midi_file_path)
+
 
 if __name__ == "__main__":
     unittest.main()
