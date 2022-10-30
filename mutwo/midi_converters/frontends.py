@@ -766,7 +766,10 @@ class EventToMidiFile(core_converters.abc.Converter):
         # add end of track message
         duration_in_ticks = self._beats_to_ticks(duration)
         sorted_midi_message_list.append(
-            mido.MetaMessage("end_of_track", time=duration_in_ticks)
+            mido.MetaMessage(
+                "end_of_track",
+                time=max((sorted_midi_message_list[-1].time, duration_in_ticks)),
+            )
         )
 
         # convert from absolute to relative time
@@ -894,7 +897,9 @@ class EventToMidiFile(core_converters.abc.Converter):
     #               public methods for interaction with the user             #
     # ###################################################################### #
 
-    def convert(self, event_to_convert: ConvertableEventUnion, path: typing.Optional[str] = None) -> mido.MidiFile:
+    def convert(
+        self, event_to_convert: ConvertableEventUnion, path: typing.Optional[str] = None
+    ) -> mido.MidiFile:
         """Render a Midi file to the converters path attribute from the given event.
 
         :param event_to_convert: The given event that shall be translated
@@ -944,7 +949,9 @@ class EventToMidiFile(core_converters.abc.Converter):
         midi_file = self._event_to_midi_file(event_to_convert)
 
         if path is not None:
-            midi_file.save(filename=path)
+            try:
+                midi_file.save(filename=path)
+            except:
+                raise AssertionError(midi_file)
 
         return midi_file
-

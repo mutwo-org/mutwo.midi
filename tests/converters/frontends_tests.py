@@ -1,3 +1,4 @@
+import fractions
 import itertools
 import os
 import unittest
@@ -760,6 +761,12 @@ class EventToMidiFileTest(unittest.TestCase):
         self.assertTrue(os.path.exists(self.midi_file_path))
         self.assertTrue(midi_file)
         self.assertIsInstance(midi_file, mido.MidiFile)
+        os.remove(self.midi_file_path)
+
+    def test_convert_event_with_small_duration(self):
+        simple_event = core_events.SimpleEvent(fractions.Fraction(1, 4))
+        self.converter.convert(simple_event, self.midi_file_path)
+        self.assertTrue(os.path.exists(self.midi_file_path))
         os.remove(self.midi_file_path)
 
 
