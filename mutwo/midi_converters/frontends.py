@@ -173,9 +173,9 @@ class EventToMidiFile(core_converters.abc.Converter):
 
     :param simple_event_to_pitch_list: Function to extract from a
         :class:`mutwo.core_events.SimpleEvent` a tuple that contains pitch objects
-        (objects that inherit from :class:`mutwo.ext.parameters.abc.Pitch`).
+        (objects that inherit from :class:`mutwo.music_parameters.abc.Pitch`).
         By default it asks the Event for its :attr:`pitch_list` attribute
-        (because by default :class:`mutwo.events.music.NoteLike` objects are expected).
+        (because by default :class:`mutwo.music_events.NoteLike` objects are expected).
         When using different Event classes than ``NoteLike`` with a different name for
         their pitch property, this argument should be overridden. If the function call
         raises an :obj:`AttributeError` (e.g. if no pitch can be extracted),
@@ -185,9 +185,9 @@ class EventToMidiFile(core_converters.abc.Converter):
     :param simple_event_to_volume: Function to extract the volume from a
         :class:`mutwo.core_events.SimpleEvent` in the purpose of generating midi notes.
         The function should return an object that inhertis from
-        :class:`mutwo.ext.parameters.abc.Volume`. By default it asks the Event for
+        :class:`mutwo.music_parameters.abc.Volume`. By default it asks the Event for
         its :attr:`volume` attribute (because by default
-        :class:`mutwo.events.music.NoteLike` objects are expected).
+        :class:`mutwo.music_events.NoteLike` objects are expected).
         When using different Event classes than ``NoteLike`` with a
         different name for their volume property, this argument should be overridden.
         If the function call raises an :obj:`AttributeError` (e.g. if no volume can be
@@ -243,11 +243,11 @@ class EventToMidiFile(core_converters.abc.Converter):
 
     **Example**:
 
-    >>> from mutwo.converters.frontends import midi
-    >>> from mutwo.ext.parameters import pitches
+    >>> from mutwo import midi_converters
+    >>> from mutwo import music_parameters
     >>> # midi file converter that assign a middle c to all events
-    >>> midi_converter = midi.EventToMidiFile(
-    >>>     simple_event_to_pitch_list=lambda event: (pitches.WesternPitch('c'),)
+    >>> midi_converter = midi_converters.EventToMidiFile(
+    >>>     simple_event_to_pitch_list=lambda event: (music_parameters.WesternPitch('c'),)
     >>> )
 
     **Disclaimer**:
@@ -621,7 +621,7 @@ class EventToMidiFile(core_converters.abc.Converter):
         messages.
 
         Gets as an input relevant data for midi message generation that has been
-        extracted from a :class:`mutwo.abc.Event` object.
+        extracted from a :class:`mutwo.core_events.abc.Event` object.
         """
 
         absolute_tick_start = self._beats_to_ticks(absolute_time)
@@ -867,7 +867,7 @@ class EventToMidiFile(core_converters.abc.Converter):
     def _event_to_midi_file(
         self, event_to_convert: ConvertableEventUnion
     ) -> mido.MidiFile:
-        """Convert mutwo event object to mido MidiFile object."""
+        """Convert mutwo event object to mido `MidiFile` object."""
 
         midi_file = mido.MidiFile(
             ticks_per_beat=self._ticks_per_beat, type=self._midi_file_type
@@ -907,23 +907,24 @@ class EventToMidiFile(core_converters.abc.Converter):
         The following example generates a midi file that contains a simple ascending
         pentatonic scale:
 
-        >>> from mutwo.events import basic, music
-        >>> from mutwo.ext.parameters import pitches
-        >>> from mutwo.converters.frontends import midi
-        >>> ascending_scale = basic.SequentialEvent(
+        >>> from mutwo import core_events
+        >>> from mutwo import music_events
+        >>> from mutwo import music_parameters
+        >>> from mutwo import midi_converters
+        >>> ascending_scale = core_events.SequentialEvent(
         >>>     [
-        >>>         music.NoteLike(pitches.WesternPitch(pitch), duration=1, volume=0.5)
+        >>>         music_events.NoteLike(music_parameters.WesternPitch(pitch), duration=1, volume=0.5)
         >>>         for pitch in 'c d e g a'.split(' ')
         >>>     ]
         >>> )
-        >>> midi_converter = midi.EventToMidiFile(
+        >>> midi_converter = midi_converters.EventToMidiFile(
         >>>     available_midi_channel_tuple=(0,)
         >>> )
         >>> midi_converter.convert(ascending_scale, 'ascending_scale.mid')
 
         **Disclaimer:** when passing nested structures, make sure that the
         nested object matches the expected type. Unlike other mutwo
-        converter classes (like :class:`mutwo.converters.core_converters.TempoConverter`)
+        converter classes (like :class:`mutwo.core_converters.TempoConverter`)
         :class:`EventToMidiFile` can't convert infinitely nested structures
         (due to the particular way how Midi files are defined). The deepest potential
         structure is a :class:`mutwo.core_events.SimultaneousEvent` (representing
