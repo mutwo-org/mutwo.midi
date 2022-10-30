@@ -681,8 +681,6 @@ class EventToMidiFile(core_converters.abc.Converter):
                 is_rest = True
                 break
 
-        print(extracted_data_list)
-
         # if not all relevant data could be extracted, simply ignore the
         # event
         if is_rest:
@@ -695,11 +693,6 @@ class EventToMidiFile(core_converters.abc.Converter):
             available_midi_channel_tuple_cycle,
             *extracted_data_list,  # type: ignore
         )
-        print(midi_message_tuple)
-        try:
-            print(midi_message_tuple[0].note)
-        except Exception:
-            pass
         return midi_message_tuple
 
     def _sequential_event_to_midi_message_tuple(
