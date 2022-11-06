@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   build_test:
     docker:
-      - image: cimg/python:3.9
+      - image: cimg/python:3.10
     steps:
       - checkout
       - run: sudo apt-get update && sudo apt-get upgrade
@@ -16,13 +16,11 @@ jobs:
             virtualenv $TEST_VIRTUALENV_DIR/mutwo_test
             source mutwo_test/mutwo_test/bin/activate
             pip3 install .[testing]
-            cp -r tests mutwo_test/
-            cd mutwo_test
-            nosetests --with-coverage --cover-package=mutwo
+            pytest
             deactivate
   pypi_publish:
     docker:
-      - image: cimg/python:3.9
+      - image: cimg/python:3.10
     steps:
       - checkout  # checkout source code to working directory
       - run:

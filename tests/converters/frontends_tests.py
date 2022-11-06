@@ -1,10 +1,14 @@
-import fractions
 import itertools
 import os
 import unittest
 
 import mido  # type: ignore
 import numpy as np  # type: ignore
+
+try:
+    import quicktions as fractions
+except ImportError:
+    import fractions
 
 from mutwo import core_events
 from mutwo import core_parameters

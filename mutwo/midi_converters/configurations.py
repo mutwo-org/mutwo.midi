@@ -19,7 +19,7 @@ DEFAULT_MIDI_CHANNEL_COUNT_PER_TRACK = 1
 """default value for ``midi_channel_count_per_track`` in `mutwo.midi_converters.EventToMidiFile`"""
 
 DEFAULT_TEMPO_ENVELOPE: core_events.TempoEnvelope = core_events.TempoEnvelope(
-    ((0, core_parameters.TempoPoint(120, 1)), (1, core_parameters.TempoPoint(120, 1))),
+    ((0, core_parameters.DirectTempoPoint(120, 1)), (1, core_parameters.DirectTempoPoint(120, 1))),
 )
 """default value for ``tempo_envelope`` in `mutwo.midi_converters.EventToMidiFile`"""
 

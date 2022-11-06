@@ -256,7 +256,7 @@ class EventToMidiFile(core_converters.abc.Converter):
         dynamically changing tempo (ritardando or accelerando).
     """
 
-    _tempo_point_converter = core_converters.TempoPointConverter()
+    _tempo_point_converter = core_converters.TempoPointToBeatLengthInSeconds()
 
     def __init__(
         self,
@@ -375,7 +375,7 @@ class EventToMidiFile(core_converters.abc.Converter):
 
     @staticmethod
     def _adjust_beat_length_in_microseconds(
-        tempo_point: typing.Union[core_constants.Real, core_parameters.TempoPoint],
+        tempo_point: typing.Union[core_constants.Real, core_parameters.DirectTempoPoint],
         beat_length_in_microseconds: int,
     ) -> int:
         """This method makes sure that ``beat_length_in_microseconds`` isn't too big.
