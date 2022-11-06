@@ -3,10 +3,10 @@ with pkgs.python310Packages;
 
 let
 
-  mutwo-core-archive = builtins.fetchTarball "https://github.com/mutwo-org/mutwo.core/archive/28a13e348876fa07929f5fd4f3953fee624c255c.tar.gz";
+  mutwo-core-archive = builtins.fetchTarball "https://github.com/mutwo-org/mutwo.core/archive/61ebb657ef5806eb067f5df6885254fdbae8f44c.tar.gz";
   mutwo-core = import (mutwo-core-archive + "/default.nix");
 
-  mutwo-music-archive = builtins.fetchTarball "https://github.com/mutwo-org/mutwo.music/archive/725462d2342b0a27d88a38272b0ad93848d87399.tar.gz";
+  mutwo-music-archive = builtins.fetchTarball "https://github.com/mutwo-org/mutwo.music/archive/d90b6db7d433d64c25f039adcd6b41075c05c013.tar.gz";
   mutwo-music = import (mutwo-music-archive + "/default.nix");
 
 in
