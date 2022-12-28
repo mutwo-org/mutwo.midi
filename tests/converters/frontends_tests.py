@@ -701,7 +701,9 @@ class EventToMidiFileTest(unittest.TestCase):
         note_on_message_index = 0
         for message in midi_file:
             if message.type == "note_on":
-                self.assertAlmostEqual(message.note, constant_pitch.midi_pitch_number)
+                self.assertAlmostEqual(
+                    message.note, constant_pitch.midi_pitch_number, places=5
+                )
                 self.assertEqual(
                     message.velocity,
                     constant_volume.midi_velocity,
