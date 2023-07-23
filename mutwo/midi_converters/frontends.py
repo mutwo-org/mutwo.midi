@@ -43,10 +43,10 @@ class SimpleEventToControlMessageTuple(core_converters.SimpleEventToAttribute):
         attribute_name: typing.Optional[str] = None,
         exception_value: tuple[mido.Message, ...] = tuple([]),
     ):
-        if attribute_name is None:
-            attribute_name = (
-                midi_converters.configurations.DEFAULT_CONTROL_MESSAGE_TUPLE_ATTRIBUTE_NAME
-            )
+        attribute_name = (
+            attribute_name
+            or midi_converters.configurations.DEFAULT_CONTROL_MESSAGE_TUPLE_ATTRIBUTE_NAME
+        )
         super().__init__(attribute_name, exception_value)
 
 
@@ -62,10 +62,10 @@ class CentDeviationToPitchBendingNumber(core_converters.abc.Converter):
     """
 
     def __init__(self, maximum_pitch_bend_deviation: typing.Optional[float] = None):
-        if maximum_pitch_bend_deviation is None:
-            maximum_pitch_bend_deviation = (
-                midi_converters.configurations.DEFAULT_MAXIMUM_PITCH_BEND_DEVIATION_IN_CENTS
-            )
+        maximum_pitch_bend_deviation = (
+            maximum_pitch_bend_deviation
+            or midi_converters.configurations.DEFAULT_MAXIMUM_PITCH_BEND_DEVIATION_IN_CENTS
+        )
 
         self._maximum_pitch_bend_deviation = maximum_pitch_bend_deviation
         self._pitch_bending_warning = (
@@ -280,31 +280,29 @@ class EventToMidiFile(core_converters.abc.Converter):
         instrument_name: typing.Optional[str] = None,
         tempo_envelope: typing.Optional[core_events.TempoEnvelope] = None,
     ):
-        # TODO(find a less redundant way of setting default values)
-        # set current default values if ext_parameters aren't defined
-        if midi_file_type is None:
-            midi_file_type = midi_converters.configurations.DEFAULT_MIDI_FILE_TYPE
+        # set current default values if parameters aren't defined
+        midi_file_type = (
+            midi_file_type or midi_converters.configurations.DEFAULT_MIDI_FILE_TYPE
+        )
+        available_midi_channel_tuple = (
+            available_midi_channel_tuple
+            or midi_converters.configurations.DEFAULT_AVAILABLE_MIDI_CHANNEL_TUPLE
+        )
+        midi_channel_count_per_track = (
+            midi_channel_count_per_track
+            or midi_converters.configurations.DEFAULT_MIDI_CHANNEL_COUNT_PER_TRACK
+        )
+        ticks_per_beat = (
+            ticks_per_beat or midi_converters.configurations.DEFAULT_TICKS_PER_BEAT
+        )
 
-        if available_midi_channel_tuple is None:
-            available_midi_channel_tuple = (
-                midi_converters.configurations.DEFAULT_AVAILABLE_MIDI_CHANNEL_TUPLE
-            )
-
-        if midi_channel_count_per_track is None:
-            midi_channel_count_per_track = (
-                midi_converters.configurations.DEFAULT_MIDI_CHANNEL_COUNT_PER_TRACK
-            )
-
-        if ticks_per_beat is None:
-            ticks_per_beat = midi_converters.configurations.DEFAULT_TICKS_PER_BEAT
-
-        if instrument_name is None:
-            instrument_name = (
-                midi_converters.configurations.DEFAULT_MIDI_INSTRUMENT_NAME
-            )
-
-        if tempo_envelope is None:
-            tempo_envelope = midi_converters.configurations.DEFAULT_TEMPO_ENVELOPE
+        instrument_name = (
+            instrument_name
+            or midi_converters.configurations.DEFAULT_MIDI_INSTRUMENT_NAME
+        )
+        tempo_envelope = (
+            tempo_envelope or midi_converters.configurations.DEFAULT_TEMPO_ENVELOPE
+        )
 
         # check for correct values of midi specifications (have to be correct to be
         # able to write a readable midi file)
@@ -339,10 +337,10 @@ class EventToMidiFile(core_converters.abc.Converter):
         try:
             assert midi_file_type in (0, 1)
         except AssertionError:
-            message = (
-                "Unknown midi_file_type '{}'. Only midi type 0 and 1 are supported."
+            raise ValueError(
+                f"Unknown midi_file_type '{midi_file_type}'. "
+                "Only midi type 0 and 1 are supported."
             )
-            raise ValueError(message)
 
     @staticmethod
     def _assert_available_midi_channel_tuple_has_correct_value(
@@ -350,11 +348,9 @@ class EventToMidiFile(core_converters.abc.Converter):
     ):
         # check for correct range of each number
         for midi_channel in available_midi_channel_tuple:
-            try:
-                assert (
-                    midi_channel in midi_converters.constants.ALLOWED_MIDI_CHANNEL_TUPLE
-                )
-            except AssertionError:
+            if not (
+                midi_channel in midi_converters.constants.ALLOWED_MIDI_CHANNEL_TUPLE
+            ):
                 raise ValueError(
                     "Found unknown midi channel "
                     f"'{midi_converters.constants.ALLOWED_MIDI_CHANNEL_TUPLE}' "
@@ -365,15 +361,11 @@ class EventToMidiFile(core_converters.abc.Converter):
                 )
 
         # check for duplicate
-        try:
-            assert len(available_midi_channel_tuple) == len(
-                set(available_midi_channel_tuple)
+        if len(available_midi_channel_tuple) != len(set(available_midi_channel_tuple)):
+            raise ValueError(
+                "Found duplicate in available_midi_channel_tuple "
+                f"'{available_midi_channel_tuple}'."
             )
-        except AssertionError:
-            message = "Found duplicate in available_midi_channel_tuple '{}'.".format(
-                available_midi_channel_tuple
-            )
-            raise ValueError(message)
 
     @staticmethod
     def _adjust_beat_length_in_microseconds(
@@ -869,9 +861,7 @@ class EventToMidiFile(core_converters.abc.Converter):
             )
             midi_file.tracks.extend(midi_track_iterator)
 
-    def _event_to_midi_file(
-        self, event_to_convert: ConvertableEvent
-    ) -> mido.MidiFile:
+    def _event_to_midi_file(self, event_to_convert: ConvertableEvent) -> mido.MidiFile:
         """Convert mutwo event object to mido `MidiFile` object."""
 
         midi_file = mido.MidiFile(
@@ -879,19 +869,20 @@ class EventToMidiFile(core_converters.abc.Converter):
         )
 
         # depending on the event types timing structure different methods are called
-        if isinstance(event_to_convert, core_events.SimultaneousEvent):
-            self._add_simultaneous_event_to_midi_file(event_to_convert, midi_file)
-        elif isinstance(event_to_convert, core_events.SequentialEvent):
-            self._add_sequential_event_to_midi_file(event_to_convert, midi_file)
-        elif isinstance(event_to_convert, core_events.SimpleEvent):
-            self._add_simple_event_to_midi_file(event_to_convert, midi_file)
-        else:
-            raise TypeError(
-                f"Can't convert object '{event_to_convert}' "
-                f"of type '{type(event_to_convert)}' to a MidiFile. "
-                "Supported types include all inherited classes "
-                f"from '{ConvertableEvent}'."
-            )
+        match event_to_convert:
+            case core_events.SimultaneousEvent():
+                self._add_simultaneous_event_to_midi_file(event_to_convert, midi_file)
+            case core_events.SequentialEvent():
+                self._add_sequential_event_to_midi_file(event_to_convert, midi_file)
+            case core_events.SimpleEvent():
+                self._add_simple_event_to_midi_file(event_to_convert, midi_file)
+            case _:
+                raise TypeError(
+                    f"Can't convert object '{event_to_convert}' "
+                    f"of type '{type(event_to_convert)}' to a MidiFile. "
+                    "Supported types include all inherited classes "
+                    f"from '{ConvertableEvent}'."
+                )
 
         return midi_file
 
@@ -955,7 +946,7 @@ class EventToMidiFile(core_converters.abc.Converter):
         if path is not None:
             try:
                 midi_file.save(filename=path)
-            except:
+            except Exception:
                 raise AssertionError(midi_file)
 
         return midi_file

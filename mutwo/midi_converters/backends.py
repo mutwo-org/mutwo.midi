@@ -57,7 +57,7 @@ class PitchBendingNumberToPitchInterval(core_converters.abc.Converter):
         self,
         pitch_bending_number_to_convert: midi_converters.constants.PitchBend,
     ) -> music_parameters.abc.PitchInterval:
-        raise NotImplementedError
+        ...
 
 
 class PitchBendingNumberToDirectPitchInterval(PitchBendingNumberToPitchInterval):
@@ -109,7 +109,7 @@ class MidiPitchToMutwoPitch(core_converters.abc.Converter):
     def convert(
         self, midi_pitch_to_convert: midi_converters.constants.MidiPitch
     ) -> music_parameters.abc.Pitch:
-        raise NotImplementedError
+        ...
 
 
 class MidiPitchToDirectPitch(MidiPitchToMutwoPitch):
@@ -140,7 +140,7 @@ class MidiVelocityToMutwoVolume(core_converters.abc.Converter):
     def convert(
         self, midi_velocity: midi_converters.constants.MidiVelocity
     ) -> music_parameters.abc.Volume:
-        raise NotImplementedError
+        ...
 
 
 class MidiVelocityToWesternVolume(MidiVelocityToMutwoVolume):
