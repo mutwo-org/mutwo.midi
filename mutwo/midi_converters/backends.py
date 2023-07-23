@@ -3,7 +3,6 @@
 import abc
 import copy
 import typing
-import warnings
 
 import mido
 import numpy as np
@@ -179,9 +178,7 @@ class MidiVelocityToWesternVolume(MidiVelocityToMutwoVolume):
         return music_parameters.WesternVolume(dynamic_indicator)
 
 
-MessageTypeToMidiMessageList = dict[
-    str, list[mido.Message | mido.MetaMessage]
-]
+MessageTypeToMidiMessageList = dict[str, list[mido.Message | mido.MetaMessage]]
 NotePair = tuple[mido.Message, mido.Message]
 NotePairTuple = tuple[NotePair, ...]
 StartAndStopTupleToNotePairList = dict[tuple[int, int], list[NotePair]]
@@ -230,6 +227,7 @@ class MidiFileToEvent(core_converters.abc.Converter):
             [midi_converters.constants.MidiVelocity], music_parameters.abc.Volume
         ] = MidiVelocityToWesternVolume(),
     ):
+        self._logger = core_utilities.get_cls_logger(type(self))
         self._mutwo_parameter_dict_to_simple_event = (
             mutwo_parameter_dict_to_simple_event
         )
@@ -260,65 +258,6 @@ class MidiFileToEvent(core_converters.abc.Converter):
         for midi_message_list in message_type_to_midi_message_list.values():
             midi_message_list.sort(key=lambda midi_message: midi_message.time)
         return message_type_to_midi_message_list
-
-    @staticmethod
-    def _get_note_off_partner(
-        note_on_message: mido.Message | mido.MetaMessage,
-        note_off_message_list: list[mido.Message | mido.MetaMessage],
-    ) -> typing.Optional[mido.Message]:
-        def is_valid_note_off_message(
-            note_off_message: mido.Message | mido.MetaMessage
-        ) -> bool:
-            test_list = [
-                note_off_message.time >= note_on_message.time,  # type: ignore
-                note_on_message.note == note_off_message.note,  # type: ignore
-                note_on_message.channel == note_off_message.channel,  # type: ignore
-            ]
-            return all(test_list)
-
-        try:
-            note_off_message = next(
-                filter(is_valid_note_off_message, note_off_message_list)
-            )
-            assert isinstance(note_off_message, mido.Message)
-        except StopIteration:
-            warnings.warn(
-                (
-                    "Invalid midi file: "
-                    "Found note on message without any suitable "
-                    "note off message partner. The note on message is: "
-                    f"'{note_on_message}'."
-                ),
-                RuntimeWarning,
-            )
-            note_off_message = None
-
-        return note_off_message
-
-    @staticmethod
-    def _get_note_pair_tuple(
-        message_type_to_midi_message_list: MessageTypeToMidiMessageList,
-    ) -> NotePairTuple:
-        try:
-            note_on_message_list = message_type_to_midi_message_list["note_on"]
-            note_off_message_list = copy.deepcopy(
-                message_type_to_midi_message_list["note_off"]
-            )
-        except KeyError:
-            return tuple([])
-
-        note_pair_list = []
-        for note_on_message in note_on_message_list:
-            note_off_message = MidiFileToEvent._get_note_off_partner(
-                note_on_message, note_off_message_list
-            )
-            if note_off_message is not None:
-                note_pair = (note_on_message, note_off_message)
-                note_pair_list.append(note_pair)
-                del note_off_message_list[note_off_message_list.index(note_off_message)]
-
-        note_pair_list.sort(key=lambda note_pair: note_pair[0].time)
-        return tuple(note_pair_list)
 
     @staticmethod
     def _note_pair_tuple_to_start_and_stop_tuple_to_note_pair_list(
@@ -359,6 +298,62 @@ class MidiFileToEvent(core_converters.abc.Converter):
     # ###################################################################### #
     #                          private methods                               #
     # ###################################################################### #
+
+    def _get_note_off_partner(
+        self,
+        note_on_message: mido.Message | mido.MetaMessage,
+        note_off_message_list: list[mido.Message | mido.MetaMessage],
+    ) -> typing.Optional[mido.Message]:
+        def is_valid_note_off_message(
+            note_off_message: mido.Message | mido.MetaMessage,
+        ) -> bool:
+            test_list = [
+                note_off_message.time >= note_on_message.time,  # type: ignore
+                note_on_message.note == note_off_message.note,  # type: ignore
+                note_on_message.channel == note_off_message.channel,  # type: ignore
+            ]
+            return all(test_list)
+
+        try:
+            note_off_message = next(
+                filter(is_valid_note_off_message, note_off_message_list)
+            )
+            assert isinstance(note_off_message, mido.Message)
+        except StopIteration:
+            self._logger.warning(
+                "Invalid midi file: "
+                "Found note on message without any suitable "
+                "note off message partner. The note on message is: "
+                f"'{note_on_message}'."
+            )
+            note_off_message = None
+
+        return note_off_message
+
+    def _get_note_pair_tuple(
+        self,
+        message_type_to_midi_message_list: MessageTypeToMidiMessageList,
+    ) -> NotePairTuple:
+        try:
+            note_on_message_list = message_type_to_midi_message_list["note_on"]
+            note_off_message_list = copy.deepcopy(
+                message_type_to_midi_message_list["note_off"]
+            )
+        except KeyError:
+            return tuple([])
+
+        note_pair_list = []
+        for note_on_message in note_on_message_list:
+            note_off_message = self._get_note_off_partner(
+                note_on_message, note_off_message_list
+            )
+            if note_off_message is not None:
+                note_pair = (note_on_message, note_off_message)
+                note_pair_list.append(note_pair)
+                del note_off_message_list[note_off_message_list.index(note_off_message)]
+
+        note_pair_list.sort(key=lambda note_pair: note_pair[0].time)
+        return tuple(note_pair_list)
 
     def _note_pair_list_to_simple_event(
         self, note_pair_list: list[NotePair], ticks_per_beat: int
@@ -455,9 +450,7 @@ class MidiFileToEvent(core_converters.abc.Converter):
         message_type_to_midi_message_list = (
             MidiFileToEvent._get_message_type_to_midi_message_list(midi_file_to_convert)
         )
-        note_pair_tuple = MidiFileToEvent._get_note_pair_tuple(
-            message_type_to_midi_message_list
-        )
+        note_pair_tuple = self._get_note_pair_tuple(message_type_to_midi_message_list)
         try:
             set_tempo_message_list = message_type_to_midi_message_list["set_tempo"]
         except KeyError:

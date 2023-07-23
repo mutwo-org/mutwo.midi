@@ -6,7 +6,6 @@ import functools
 import itertools
 import operator
 import typing
-import warnings
 
 import mido  # type: ignore
 
@@ -62,6 +61,8 @@ class CentDeviationToPitchBendingNumber(core_converters.abc.Converter):
     """
 
     def __init__(self, maximum_pitch_bend_deviation: typing.Optional[float] = None):
+        self._logger = core_utilities.get_cls_logger(type(self))
+
         maximum_pitch_bend_deviation = (
             maximum_pitch_bend_deviation
             or midi_converters.configurations.DEFAULT_MAXIMUM_PITCH_BEND_DEVIATION_IN_CENTS
@@ -73,14 +74,13 @@ class CentDeviationToPitchBendingNumber(core_converters.abc.Converter):
         )
 
     def _warn_pitch_bending(self, cent_deviation: core_constants.Real):
-        warnings.warn(
+        self._logger.warning(
             f"Maximum pitch bending is {self._maximum_pitch_bend_deviation} "
             "cents up or down! Found prohibited necessity for pitch "
             f"bending with cent_deviation = {cent_deviation}. "
             "Mutwo normalized pitch bending to the allowed border."
             " Increase the 'maximum_pitch_bend_deviation' argument in the "
-            "CentDeviationToPitchBendingNumber instance.",
-            RuntimeWarning,
+            "CentDeviationToPitchBendingNumber instance."
         )
 
     def convert(
@@ -280,6 +280,8 @@ class EventToMidiFile(core_converters.abc.Converter):
         instrument_name: typing.Optional[str] = None,
         tempo_envelope: typing.Optional[core_events.TempoEnvelope] = None,
     ):
+        self._logger = core_utilities.get_cls_logger(type(self))
+
         # set current default values if parameters aren't defined
         midi_file_type = (
             midi_file_type or midi_converters.configurations.DEFAULT_MIDI_FILE_TYPE
@@ -367,8 +369,12 @@ class EventToMidiFile(core_converters.abc.Converter):
                 f"'{available_midi_channel_tuple}'."
             )
 
-    @staticmethod
+    # ###################################################################### #
+    #                         helper methods                                 #
+    # ###################################################################### #
+
     def _adjust_beat_length_in_microseconds(
+        self,
         tempo_point: core_constants.Real | core_parameters.DirectTempoPoint,
         beat_length_in_microseconds: int,
     ) -> int:
@@ -389,22 +395,15 @@ class EventToMidiFile(core_converters.abc.Converter):
             beats_per_minute = mido.tempo2bpm(
                 midi_converters.constants.MAXIMUM_MICROSECONDS_PER_BEAT
             )
-            warnings.warn(
-                (
-                    f"TempoPoint '{tempo_point}' is too slow for "
-                    "Standard Midi Files. "
-                    f"The slowest possible tempo is '{beats_per_minute}' BPM."
-                    "Tempo has been set to"
-                    f" '{beats_per_minute}' BPM."
-                ),
-                RuntimeWarning,
+            self._logger.warning(
+                f"TempoPoint '{tempo_point}' is too slow for "
+                "Standard Midi Files. "
+                f"The slowest possible tempo is '{beats_per_minute}' BPM."
+                "Tempo has been set to"
+                f" '{beats_per_minute}' BPM.",
             )
 
         return beat_length_in_microseconds
-
-    # ###################################################################### #
-    #                         helper methods                                 #
-    # ###################################################################### #
 
     def _beats_per_minute_to_beat_length_in_microseconds(
         self, beats_per_minute: core_constants.Real
@@ -482,10 +481,8 @@ class EventToMidiFile(core_converters.abc.Converter):
                 self._beats_per_minute_to_beat_length_in_microseconds(tempo_point)
             )
 
-            beat_length_in_microseconds = (
-                EventToMidiFile._adjust_beat_length_in_microseconds(
-                    tempo_point, beat_length_in_microseconds
-                )
+            beat_length_in_microseconds = self._adjust_beat_length_in_microseconds(
+                tempo_point, beat_length_in_microseconds
             )
 
             tempo_message = mido.MetaMessage(

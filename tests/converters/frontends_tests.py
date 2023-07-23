@@ -168,7 +168,7 @@ class EventToMidiFileTest(unittest.TestCase):
         tempo_point = 40
         beat_length_in_microseconds = mido.bpm2tempo(tempo_point)
         self.assertEqual(
-            midi_converters.EventToMidiFile._adjust_beat_length_in_microseconds(
+            self.converter._adjust_beat_length_in_microseconds(
                 tempo_point, beat_length_in_microseconds
             ),
             beat_length_in_microseconds,
@@ -179,7 +179,7 @@ class EventToMidiFileTest(unittest.TestCase):
         tempo_point = 3
         beat_length_in_microseconds = mido.bpm2tempo(tempo_point)
         self.assertEqual(
-            midi_converters.EventToMidiFile._adjust_beat_length_in_microseconds(
+            self.converter._adjust_beat_length_in_microseconds(
                 tempo_point, beat_length_in_microseconds
             ),
             midi_converters.constants.MAXIMUM_MICROSECONDS_PER_BEAT,
