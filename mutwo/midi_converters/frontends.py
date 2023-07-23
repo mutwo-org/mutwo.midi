@@ -661,16 +661,26 @@ class EventToMidiFile(core_converters.abc.Converter):
 
         # try to extract the relevant data
         is_rest = False
-        for extraction_function in (
-            self._simple_event_to_pitch_list,
-            self._simple_event_to_volume,
-            self._simple_event_to_control_message_tuple,
+        for p, extraction_function in (
+            ("pitch_list", self._simple_event_to_pitch_list),
+            ("volume", self._simple_event_to_volume),
+            ("control_message_tuple", self._simple_event_to_control_message_tuple),
         ):
             try:
-                extracted_data_list.append(extraction_function(simple_event))
+                extracted_data = extraction_function(simple_event)
             except AttributeError:
                 is_rest = True
+            else:
+                if extracted_data is None:
+                    self._logger.warning(
+                        "Extracting '{p}' from event '{simple_event}' "
+                        "returned 'None'! Converter autoset this event to "
+                        "a rest."
+                    )
+                    is_rest = True
+            if is_rest:
                 break
+            extracted_data_list.append(extracted_data)
 
         # if not all relevant data could be extracted, simply ignore the
         # event
@@ -742,8 +752,7 @@ class EventToMidiFile(core_converters.abc.Converter):
         In the resulting midi track the timing of the messages is relative.
         """
         self._logger.debug(
-            "Convert midi messages -> MidiTrack\n\t"
-            f"msg-tuple: {midi_message_tuple}"
+            "Convert midi messages -> MidiTrack\n\t" f"msg-tuple: {midi_message_tuple}"
         )
 
         # initialise midi track

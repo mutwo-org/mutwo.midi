@@ -775,6 +775,16 @@ class EventToMidiFileTest(unittest.TestCase):
         self.assertTrue(os.path.exists(self.midi_file_path))
         os.remove(self.midi_file_path)
 
+    def test_convert_with_bad_parameters(self):
+        """Ensure converter doesn't break if some parameters are set to None"""
+        simple_event = core_events.SimpleEvent(2)
+        for p in ("pitch_list", "volume", "midi_control_message_tuple"):
+            simple_event.set_parameter(p, None)
+        self.assertTrue(self.converter.convert(simple_event))
+        # Logger should raise a warning
+        with self.assertLogs(self.converter._logger):
+            self.converter.convert(simple_event)
+
 
 if __name__ == "__main__":
     unittest.main()
