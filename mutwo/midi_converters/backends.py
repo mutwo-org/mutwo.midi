@@ -336,10 +336,16 @@ class MidiFileToEvent(core_converters.abc.Converter):
     ) -> NotePairTuple:
         try:
             note_on_message_list = message_type_to_midi_message_list["note_on"]
+        except KeyError:
+            self._logger.debug("No 'note_on' messages were found!")
+            return tuple([])
+
+        try:
             note_off_message_list = copy.deepcopy(
                 message_type_to_midi_message_list["note_off"]
             )
         except KeyError:
+            self._logger.debug("No 'note_off' messages were found!")
             return tuple([])
 
         note_pair_list = []
@@ -349,6 +355,9 @@ class MidiFileToEvent(core_converters.abc.Converter):
             )
             if note_off_message is not None:
                 note_pair = (note_on_message, note_off_message)
+                self._logger.debug(
+                    f"Found note_pair (on: {note_on_message}, off: {note_off_message})"
+                )
                 note_pair_list.append(note_pair)
                 del note_off_message_list[note_off_message_list.index(note_off_message)]
 
@@ -385,7 +394,14 @@ class MidiFileToEvent(core_converters.abc.Converter):
             music_converters.configurations.DEFAULT_PITCH_LIST_TO_SEARCH_NAME: mutwo_pitch_list,
             music_converters.configurations.DEFAULT_VOLUME_TO_SEARCH_NAME: mutwo_volume,
         }
-        return self._mutwo_parameter_dict_to_simple_event(mutwo_parameter_dict)
+        simple_event = self._mutwo_parameter_dict_to_simple_event(mutwo_parameter_dict)
+        self._logger.debug(
+            f"Midi data -> Mutwo data -> SimpleEvent:\n\t"
+            f"Midi data: (tick={tick},velocity_list={velocity_list},midi_pitch_list={midi_pitch_list})\n\t"
+            f"Mutwo data: {mutwo_parameter_dict}\n\t"
+            f"SimpleEvent: {simple_event}"
+        )
+        return simple_event
 
     def _note_pair_tuple_to_simultaneous_event(
         self, note_pair_tuple: NotePairTuple, ticks_per_beat: int

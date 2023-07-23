@@ -717,6 +717,10 @@ class EventToMidiFile(core_converters.abc.Converter):
                     concatenated_absolute_time,
                     available_midi_channel_tuple_cycle,
                 )
+                self._logger.debug(
+                    "SimpleEvent -> MidiMessageData:\n\t"
+                    f"{simple_event_or_sequential_event} -> {midi_message_tuple}"
+                )
             else:
                 midi_message_tuple = self._sequential_event_to_midi_message_tuple(
                     simple_event_or_sequential_event,
@@ -737,6 +741,10 @@ class EventToMidiFile(core_converters.abc.Converter):
 
         In the resulting midi track the timing of the messages is relative.
         """
+        self._logger.debug(
+            "Convert midi messages -> MidiTrack\n\t"
+            f"msg-tuple: {midi_message_tuple}"
+        )
 
         # initialise midi track
         track = mido.MidiTrack([])
@@ -816,7 +824,6 @@ class EventToMidiFile(core_converters.abc.Converter):
         objects (for midi_file_type = 1) or adds only one MidiTrack
         (for midi_file_type = 0).
         """
-
         # TODO(split this method, make it more readable!)
 
         available_midi_channel_tuple_per_sequential_event = (
@@ -868,10 +875,13 @@ class EventToMidiFile(core_converters.abc.Converter):
         # depending on the event types timing structure different methods are called
         match event_to_convert:
             case core_events.SimultaneousEvent():
+                self._logger.debug("SimultaneousEvent -> MidiFile")
                 self._add_simultaneous_event_to_midi_file(event_to_convert, midi_file)
             case core_events.SequentialEvent():
+                self._logger.debug("SequentialEvent -> MidiFile")
                 self._add_sequential_event_to_midi_file(event_to_convert, midi_file)
             case core_events.SimpleEvent():
+                self._logger.debug("SimpleEvent -> MidiFile")
                 self._add_simple_event_to_midi_file(event_to_convert, midi_file)
             case _:
                 raise TypeError(
