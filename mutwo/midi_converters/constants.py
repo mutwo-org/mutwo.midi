@@ -1,6 +1,8 @@
 """Values that are defined by the midi file standard.
 """
 
+import typing
+
 
 ALLOWED_MIDI_CHANNEL_TUPLE = tuple(range(16))
 """midi channels that are allowed (following the standard
@@ -19,14 +21,17 @@ doesn't change"""
 MAXIMUM_PITCH_BEND = 16382
 """the highest allowed value for midi pitch bend"""
 
-MidiNote = int
+MidiNote: typing.TypeAlias = int
 """MidiNote type alias"""
 
-PitchBend = int
+PitchBend: typing.TypeAlias = int
 """PitchBend type alias"""
 
-MidiPitch = tuple[MidiNote, PitchBend]
+MidiPitch: typing.TypeAlias = tuple[MidiNote, PitchBend]
 """MidiPitch type alias"""
 
-MidiVelocity = int
+MidiVelocity: typing.TypeAlias = int
 """MidiVelocity type alias"""
+
+
+del typing  # Cleanup
