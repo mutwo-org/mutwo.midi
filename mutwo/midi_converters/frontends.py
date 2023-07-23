@@ -766,6 +766,11 @@ class EventToMidiFile(core_converters.abc.Converter):
                 self._tempo_envelope
             )
 
+        # If event is empty and it isn't the first track
+        # (e.g. no tempo envelope was added)
+        if not midi_message_tuple:
+            return track
+
         # sort midi data
         sorted_midi_message_list = sorted(
             midi_message_tuple, key=lambda message: message.time

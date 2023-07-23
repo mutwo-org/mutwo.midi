@@ -785,6 +785,22 @@ class EventToMidiFileTest(unittest.TestCase):
         with self.assertLogs(self.converter._logger):
             self.converter.convert(simple_event)
 
+    def test_convert_empty(self):
+        """Ensure multiple empty midi tracks don't fail
+
+        If we have a SimultaneousEvent with multiple SequentialEvent,
+        only the first SequentialEvent gets some structural basic midi messages
+        (like instrument, tempo, etc.). All other midi tracks are empty.
+        The converter needs to support this case and must not crash.
+        """
+        self.assertTrue(
+            self.converter.convert(
+                core_events.SimultaneousEvent(
+                    [core_events.SequentialEvent([]), core_events.SequentialEvent([])]
+                )
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
