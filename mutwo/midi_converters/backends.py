@@ -180,7 +180,7 @@ class MidiVelocityToWesternVolume(MidiVelocityToMutwoVolume):
 
 
 MessageTypeToMidiMessageList = dict[
-    str, list[typing.Union[mido.Message, mido.MetaMessage]]
+    str, list[mido.Message | mido.MetaMessage]
 ]
 NotePair = tuple[mido.Message, mido.Message]
 NotePairTuple = tuple[NotePair, ...]
@@ -263,11 +263,11 @@ class MidiFileToEvent(core_converters.abc.Converter):
 
     @staticmethod
     def _get_note_off_partner(
-        note_on_message: typing.Union[mido.Message, mido.MetaMessage],
-        note_off_message_list: list[typing.Union[mido.Message, mido.MetaMessage]],
+        note_on_message: mido.Message | mido.MetaMessage,
+        note_off_message_list: list[mido.Message | mido.MetaMessage],
     ) -> typing.Optional[mido.Message]:
         def is_valid_note_off_message(
-            note_off_message: typing.Union[mido.Message, mido.MetaMessage]
+            note_off_message: mido.Message | mido.MetaMessage
         ) -> bool:
             test_list = [
                 note_off_message.time >= note_on_message.time,  # type: ignore
@@ -437,7 +437,7 @@ class MidiFileToEvent(core_converters.abc.Converter):
     def _note_pair_tuple_and_set_tempo_message_list_to_simultaneous_event(
         self,
         note_pair_tuple: NotePairTuple,
-        set_tempo_message_list: list[typing.Union[mido.Message, mido.MetaMessage]],
+        set_tempo_message_list: list[mido.Message | mido.MetaMessage],
         ticks_per_beat: int,
     ) -> core_events.SimultaneousEvent[
         core_events.SequentialEvent[core_events.SimpleEvent]
@@ -471,14 +471,14 @@ class MidiFileToEvent(core_converters.abc.Converter):
     # ###################################################################### #
 
     def convert(
-        self, midi_file_path_or_mido_midi_file: typing.Union[str, mido.MidiFile]
+        self, midi_file_path_or_mido_midi_file: str | mido.MidiFile
     ) -> core_events.abc.Event:
         """Convert midi file to mutwo event.
 
         :param midi_file_path_or_mido_midi_file: The midi file which shall
             be converted. Can either be a file path or a :class:`MidiFile`
             object from the `mido <https://github.com/mido/mido>`_ package.
-        :type midi_file_path_or_mido_midi_file: typing.Union[str, mido.MidiFile]
+        :type midi_file_path_or_mido_midi_file: str | mido.MidiFile
         """
 
         if isinstance(midi_file_path_or_mido_midi_file, str):

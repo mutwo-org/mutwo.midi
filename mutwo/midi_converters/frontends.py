@@ -26,11 +26,13 @@ __all__ = (
     "EventToMidiFile",
 )
 
-ConvertableEventUnion = typing.Union[
-    core_events.SimpleEvent,
-    core_events.SequentialEvent[core_events.SimpleEvent],
-    core_events.SimultaneousEvent[core_events.SequentialEvent[core_events.SimpleEvent]],
-]
+ConvertableEventUnion = (
+    core_events.SimpleEvent
+    | core_events.SequentialEvent[core_events.SimpleEvent]
+    | core_events.SimultaneousEvent[
+        core_events.SequentialEvent[core_events.SimpleEvent]
+    ]
+)
 
 
 class SimpleEventToControlMessageTuple(core_converters.SimpleEventToAttribute):
@@ -375,7 +377,7 @@ class EventToMidiFile(core_converters.abc.Converter):
 
     @staticmethod
     def _adjust_beat_length_in_microseconds(
-        tempo_point: typing.Union[core_constants.Real, core_parameters.DirectTempoPoint],
+        tempo_point: core_constants.Real | core_parameters.DirectTempoPoint,
         beat_length_in_microseconds: int,
     ) -> int:
         """This method makes sure that ``beat_length_in_microseconds`` isn't too big.
@@ -459,7 +461,7 @@ class EventToMidiFile(core_converters.abc.Converter):
         return available_midi_channel_tuple_per_sequential_event
 
     def _beats_to_ticks(
-        self, absolute_time: typing.Union[core_parameters.abc.Duration, typing.Any]
+        self, absolute_time: core_parameters.abc.Duration | typing.Any
     ) -> int:
         absolute_time = core_events.configurations.UNKNOWN_OBJECT_TO_DURATION(
             absolute_time
@@ -698,7 +700,7 @@ class EventToMidiFile(core_converters.abc.Converter):
     def _sequential_event_to_midi_message_tuple(
         self,
         sequential_event: core_events.SequentialEvent[
-            typing.Union[core_events.SimpleEvent, core_events.SequentialEvent]
+            core_events.SimpleEvent | core_events.SequentialEvent
         ],
         available_midi_channel_tuple: tuple[int, ...],
         absolute_time: core_parameters.abc.Duration = core_parameters.DirectDuration(0),
@@ -738,7 +740,7 @@ class EventToMidiFile(core_converters.abc.Converter):
 
     def _midi_message_tuple_to_midi_track(
         self,
-        midi_message_tuple: tuple[typing.Union[mido.Message, mido.MetaMessage], ...],
+        midi_message_tuple: tuple[mido.Message | mido.MetaMessage, ...],
         duration: core_constants.DurationType,
         is_first_track: bool = False,
     ) -> mido.MidiTrack:
@@ -904,7 +906,7 @@ class EventToMidiFile(core_converters.abc.Converter):
 
         :param event_to_convert: The given event that shall be translated
             to a Midi file.
-        :type event_to_convert: typing.Union[core_events.SimpleEvent, core_events.SequentialEvent[core_events.SimpleEvent], core_events.SimultaneousEvent[core_events.SequentialEvent[core_events.SimpleEvent]]]
+        :type event_to_convert: core_events.SimpleEvent | core_events.SequentialEvent[core_events.SimpleEvent] | core_events.SimultaneousEvent[core_events.SequentialEvent[core_events.SimpleEvent]]
         :param path: If this is a string the method will write a midi
             file to the given path. The typical file type extension '.mid'
             is recommended, but not mandatory. If set to `None` the
