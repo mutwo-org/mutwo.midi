@@ -247,8 +247,8 @@ class EventToMidiFile(core_converters.abc.Converter):
     >>> from mutwo import music_parameters
     >>> # midi file converter that assign a middle c to all events
     >>> midi_converter = midi_converters.EventToMidiFile(
-    >>>     simple_event_to_pitch_list=lambda event: (music_parameters.WesternPitch('c'),)
-    >>> )
+    ...     simple_event_to_pitch_list=lambda event: (music_parameters.WesternPitch('c'),)
+    ... )
 
     **Disclaimer**:
         The current implementation doesn't support glissandi yet (only static pitches),
@@ -920,15 +920,17 @@ class EventToMidiFile(core_converters.abc.Converter):
         >>> from mutwo import music_parameters
         >>> from mutwo import midi_converters
         >>> ascending_scale = core_events.SequentialEvent(
-        >>>     [
-        >>>         music_events.NoteLike(music_parameters.WesternPitch(pitch), duration=1, volume=0.5)
-        >>>         for pitch in 'c d e g a'.split(' ')
-        >>>     ]
-        >>> )
+        ...     [
+        ...         music_events.NoteLike(music_parameters.WesternPitch(pitch), duration=1, volume=0.5)
+        ...         for pitch in 'c d e g a'.split(' ')
+        ...     ]
+        ... )
         >>> midi_converter = midi_converters.EventToMidiFile(
-        >>>     available_midi_channel_tuple=(0,)
-        >>> )
-        >>> midi_converter.convert(ascending_scale, 'ascending_scale.mid')
+        ...     available_midi_channel_tuple=(0,)
+        ... )
+        >>> # '.convert' creates a file, but also returns the
+        >>> # respective 'mido.MidiFile' object
+        >>> midifile = midi_converter.convert(ascending_scale, 'ascending_scale.mid')
 
         **Disclaimer:** when passing nested structures, make sure that the
         nested object matches the expected type. Unlike other mutwo
