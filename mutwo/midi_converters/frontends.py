@@ -242,9 +242,8 @@ class EventToMidiFile(core_converters.abc.Converter):
     ... )
 
     **Disclaimer**:
-        The current implementation doesn't support glissandi yet (only static pitches),
-        time-signatures (the written time signature is always 4/4 for now) and
-        dynamically changing tempo (ritardando or accelerando).
+        The current implementation doesn't support time-signatures (the written time
+        signature is always 4/4 for now).
     """
 
     _tempo_point_converter = core_converters.TempoPointToBeatLengthInSeconds()
