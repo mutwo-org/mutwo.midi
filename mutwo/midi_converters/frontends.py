@@ -42,11 +42,11 @@ class SimpleEventToControlMessageTuple(core_converters.SimpleEventToAttribute):
         attribute_name: typing.Optional[str] = None,
         exception_value: tuple[mido.Message, ...] = tuple([]),
     ):
-        attribute_name = (
+        super().__init__(
             attribute_name
-            or midi_converters.configurations.DEFAULT_CONTROL_MESSAGE_TUPLE_ATTRIBUTE_NAME
+            or midi_converters.configurations.DEFAULT_CONTROL_MESSAGE_TUPLE_ATTRIBUTE_NAME,
+            exception_value,
         )
-        super().__init__(attribute_name, exception_value)
 
 
 class CentDeviationToPitchBendingNumber(core_converters.abc.Converter):
@@ -62,13 +62,10 @@ class CentDeviationToPitchBendingNumber(core_converters.abc.Converter):
 
     def __init__(self, maximum_pitch_bend_deviation: typing.Optional[float] = None):
         self._logger = core_utilities.get_cls_logger(type(self))
-
-        maximum_pitch_bend_deviation = (
+        self._maximum_pitch_bend_deviation = maximum_pitch_bend_deviation = (
             maximum_pitch_bend_deviation
             or midi_converters.configurations.DEFAULT_MAXIMUM_PITCH_BEND_DEVIATION_IN_CENTS
         )
-
-        self._maximum_pitch_bend_deviation = maximum_pitch_bend_deviation
         self._pitch_bending_warning = (
             f"Maximum pitch bending is {maximum_pitch_bend_deviation} cents up or down!"
         )
@@ -94,7 +91,7 @@ class CentDeviationToPitchBendingNumber(core_converters.abc.Converter):
             self._warn_pitch_bending(cent_deviation)
             cent_deviation = -self._maximum_pitch_bend_deviation
 
-        pitch_bending_number = round(
+        return round(
             core_utilities.scale(
                 cent_deviation,
                 -self._maximum_pitch_bend_deviation,
@@ -103,8 +100,6 @@ class CentDeviationToPitchBendingNumber(core_converters.abc.Converter):
                 midi_converters.constants.NEUTRAL_PITCH_BEND,
             )
         )
-
-        return pitch_bending_number
 
 
 class MutwoPitchToMidiPitch(core_converters.abc.Converter):
@@ -141,27 +136,21 @@ class MutwoPitchToMidiPitch(core_converters.abc.Converter):
             the closest midi pitch number to the passed mutwo pitch. Default to ``None``.
         :type midi_note: typing.Optional[int]
         """
-
-        frequency = mutwo_pitch_to_convert.frequency
+        f = mutwo_pitch_to_convert.frequency
         if midi_note:
             closest_midi_pitch = midi_note
         else:
             closest_midi_pitch = core_utilities.find_closest_index(
-                frequency, music_parameters.constants.MIDI_PITCH_FREQUENCY_TUPLE
+                f, music_parameters.constants.MIDI_PITCH_FREQUENCY_TUPLE
             )
-        difference_in_cents_to_closest_midi_pitch = (
-            music_parameters.abc.Pitch.hertz_to_cents(
-                music_parameters.constants.MIDI_PITCH_FREQUENCY_TUPLE[
-                    closest_midi_pitch
-                ],
-                frequency,
-            )
+        Δcents_to_closest_midi_pitch = music_parameters.abc.Pitch.hertz_to_cents(
+            music_parameters.constants.MIDI_PITCH_FREQUENCY_TUPLE[closest_midi_pitch],
+            f,
         )
-        pitch_bending_number = self._cent_deviation_to_pitch_bending_number.convert(
-            difference_in_cents_to_closest_midi_pitch
+        pb = self._cent_deviation_to_pitch_bending_number.convert(
+            Δcents_to_closest_midi_pitch
         )
-
-        return closest_midi_pitch, pitch_bending_number
+        return closest_midi_pitch, pb
 
 
 class EventToMidiFile(core_converters.abc.Converter):
@@ -281,54 +270,38 @@ class EventToMidiFile(core_converters.abc.Converter):
         tempo_envelope: typing.Optional[core_events.TempoEnvelope] = None,
     ):
         self._logger = core_utilities.get_cls_logger(type(self))
-
-        # set current default values if parameters aren't defined
-        midi_file_type = (
+        self._midi_file_type = (
             midi_file_type or midi_converters.configurations.DEFAULT_MIDI_FILE_TYPE
         )
-        available_midi_channel_tuple = (
+        self._available_midi_channel_tuple = (
             available_midi_channel_tuple
             or midi_converters.configurations.DEFAULT_AVAILABLE_MIDI_CHANNEL_TUPLE
         )
-        midi_channel_count_per_track = (
+        self._midi_channel_count_per_track = (
             midi_channel_count_per_track
             or midi_converters.configurations.DEFAULT_MIDI_CHANNEL_COUNT_PER_TRACK
         )
-        ticks_per_beat = (
+        self._ticks_per_beat = (
             ticks_per_beat or midi_converters.configurations.DEFAULT_TICKS_PER_BEAT
         )
-
-        instrument_name = (
+        self._instrument_name = (
             instrument_name
             or midi_converters.configurations.DEFAULT_MIDI_INSTRUMENT_NAME
         )
-        tempo_envelope = (
+        self._tempo_envelope = (
             tempo_envelope or midi_converters.configurations.DEFAULT_TEMPO_ENVELOPE
         )
-
-        # check for correct values of midi specifications (have to be correct to be
-        # able to write a readable midi file)
-        self._assert_midi_file_type_has_correct_value(midi_file_type)
-        self._assert_available_midi_channel_tuple_has_correct_value(
-            available_midi_channel_tuple
-        )
-
-        # initialise the attributes of the class
         self._simple_event_to_pitch_list = simple_event_to_pitch_list
         self._simple_event_to_volume = simple_event_to_volume
         self._simple_event_to_control_message_tuple = (
             simple_event_to_control_message_tuple
         )
-
         self._distribute_midi_channels = distribute_midi_channels
-        self._midi_channel_count_per_track = midi_channel_count_per_track
-        self._available_midi_channel_tuple = available_midi_channel_tuple
-        self._midi_file_type = midi_file_type
         self._mutwo_pitch_to_midi_pitch = mutwo_pitch_to_midi_pitch
-        self._ticks_per_beat = ticks_per_beat
-        self._instrument_name = instrument_name
-
-        self._tempo_envelope = tempo_envelope
+        self._assert_midi_file_type_has_correct_value(self._midi_file_type)
+        self._assert_available_midi_channel_tuple_has_correct_value(
+            self._available_midi_channel_tuple
+        )
 
     # ###################################################################### #
     #                          static methods                                #
@@ -349,13 +322,10 @@ class EventToMidiFile(core_converters.abc.Converter):
         available_midi_channel_tuple: tuple[int, ...],
     ):
         # check for correct range of each number
-        for midi_channel in available_midi_channel_tuple:
-            if not (
-                midi_channel in midi_converters.constants.ALLOWED_MIDI_CHANNEL_TUPLE
-            ):
+        for mc in available_midi_channel_tuple:
+            if not (mc in midi_converters.constants.ALLOWED_MIDI_CHANNEL_TUPLE):
                 raise ValueError(
-                    "Found unknown midi channel "
-                    f"'{midi_converters.constants.ALLOWED_MIDI_CHANNEL_TUPLE}' "
+                    f"Found unknown midi channel '{mc}' "
                     "in available_midi_channel_tuple."
                     " Only midi channel "
                     f"'{midi_converters.constants.ALLOWED_MIDI_CHANNEL_TUPLE}' "
@@ -384,40 +354,29 @@ class EventToMidiFile(core_converters.abc.Converter):
         In case the tempo is lower than this slowest allowed tempo, `mutwo` will
         automatically set the tempo to the lowest allowed tempo.
         """
-
-        if (
-            beat_length_in_microseconds
-            >= midi_converters.constants.MAXIMUM_MICROSECONDS_PER_BEAT
-        ):
-            beat_length_in_microseconds = (
-                midi_converters.constants.MAXIMUM_MICROSECONDS_PER_BEAT
-            )
-            beats_per_minute = mido.tempo2bpm(
+        bl = beat_length_in_microseconds
+        if bl >= midi_converters.constants.MAXIMUM_MICROSECONDS_PER_BEAT:
+            bl = midi_converters.constants.MAXIMUM_MICROSECONDS_PER_BEAT
+            bpm = mido.tempo2bpm(
                 midi_converters.constants.MAXIMUM_MICROSECONDS_PER_BEAT
             )
             self._logger.warning(
                 f"TempoPoint '{tempo_point}' is too slow for "
                 "Standard Midi Files. "
-                f"The slowest possible tempo is '{beats_per_minute}' BPM."
+                f"The slowest possible tempo is '{bpm}' BPM."
                 "Tempo has been set to"
-                f" '{beats_per_minute}' BPM.",
+                f" '{bpm}' BPM.",
             )
-
-        return beat_length_in_microseconds
+        return bl
 
     def _beats_per_minute_to_beat_length_in_microseconds(
         self, beats_per_minute: core_constants.Real
     ) -> int:
         """Method for converting beats per minute (BPM) to midi tempo.
-
         Midi tempo is stated in beat length in microseconds.
         """
-
-        beat_length_in_seconds = self._tempo_point_converter.convert(beats_per_minute)
-        beat_length_in_microseconds = int(
-            beat_length_in_seconds * midi_converters.constants.MIDI_TEMPO_FACTOR
-        )
-        return beat_length_in_microseconds
+        bl_in_seconds = self._tempo_point_converter.convert(beats_per_minute)
+        return int(bl_in_seconds * midi_converters.constants.MIDI_TEMPO_FACTOR)
 
     def _find_available_midi_channel_tuple_per_sequential_event(
         self,
@@ -431,33 +390,23 @@ class EventToMidiFile(core_converters.abc.Converter):
         to True this method distributes all available midi channels
         on the respective SequentialEvents.
         """
-
         if self._distribute_midi_channels:
-            available_midi_channel_tuple_cycle = itertools.cycle(
-                self._available_midi_channel_tuple
-            )
-            available_midi_channel_tuple_per_sequential_event = tuple(
+            mchannel_cycle = itertools.cycle(self._available_midi_channel_tuple)
+            return tuple(
                 tuple(
-                    next(available_midi_channel_tuple_cycle)
+                    next(mchannel_cycle)
                     for _ in range(self._midi_channel_count_per_track)
                 )
                 for _ in simultaneous_event
             )
-
         else:
-            available_midi_channel_tuple_per_sequential_event = tuple(
-                self._available_midi_channel_tuple for _ in simultaneous_event
-            )
-
-        return available_midi_channel_tuple_per_sequential_event
+            return tuple(self._available_midi_channel_tuple for _ in simultaneous_event)
 
     def _beats_to_ticks(
         self, absolute_time: core_parameters.abc.Duration | typing.Any
     ) -> int:
-        absolute_time = core_events.configurations.UNKNOWN_OBJECT_TO_DURATION(
-            absolute_time
-        )
-        return int(self._ticks_per_beat * absolute_time.duration)
+        abs_t = core_events.configurations.UNKNOWN_OBJECT_TO_DURATION(absolute_time)
+        return int(self._ticks_per_beat * abs_t.duration)
 
     # ###################################################################### #
     #             methods for converting mutwo data to midi data             #
@@ -472,25 +421,15 @@ class EventToMidiFile(core_converters.abc.Converter):
             tempo_envelope.get_parameter("duration"), core_parameters.DirectDuration(0)
         )
 
-        midi_message_list = []
-        for absolute_time, tempo_point in zip(
-            offset_iterator, tempo_envelope.value_tuple
-        ):
-            absolute_tick = self._beats_to_ticks(absolute_time)
-            beat_length_in_microseconds = (
-                self._beats_per_minute_to_beat_length_in_microseconds(tempo_point)
-            )
+        mlist = []
+        for abs_t, tempo_point in zip(offset_iterator, tempo_envelope.value_tuple):
+            absolute_tick = self._beats_to_ticks(abs_t)
+            bl = self._beats_per_minute_to_beat_length_in_microseconds(tempo_point)
+            bl = self._adjust_beat_length_in_microseconds(tempo_point, bl)
+            tempom = mido.MetaMessage("set_tempo", tempo=bl, time=absolute_tick)
+            mlist.append(tempom)
 
-            beat_length_in_microseconds = self._adjust_beat_length_in_microseconds(
-                tempo_point, beat_length_in_microseconds
-            )
-
-            tempo_message = mido.MetaMessage(
-                "set_tempo", tempo=beat_length_in_microseconds, time=absolute_tick
-            )
-            midi_message_list.append(tempo_message)
-
-        return tuple(midi_message_list)
+        return tuple(mlist)
 
     def _tune_pitch(
         self,
@@ -500,67 +439,61 @@ class EventToMidiFile(core_converters.abc.Converter):
         midi_channel: int,
     ) -> tuple[midi_converters.constants.MidiNote, tuple[mido.Message, ...]]:
         tick_count = absolute_tick_end - absolute_tick_start
-        # We have to use one tick less, so that at
-        # "pitch_envelope.value_at(tick_count)" we already reached the
-        # end of the envelope.
         # We replace the original pitch object with a pitch object that doesn't
         # start any complex computations when asking for its 'frequency' attribute.
         pitch_to_tune = music_parameters.DirectPitch(
             pitch_to_tune.frequency, envelope=pitch_to_tune.envelope
         )
-        pitch_envelope = pitch_to_tune.resolve_envelope(tick_count - 1)
+        # We have to use one tick less, so that at
+        # "pitch_envelope.value_at(tick_count)" we already reached the
+        # end of the envelope.
+        penvelope = pitch_to_tune.resolve_envelope(tick_count - 1)
         # We will convert the pitch envelope to numerical values for better performance
-        converted_pitch_envelope = core_events.Envelope(
+        numerical_penvelope = core_events.Envelope(
             [
                 [absolute_time, value, event.curve_shape]
                 for absolute_time, value, event in zip(
-                    pitch_envelope.absolute_time_tuple,
-                    pitch_envelope.value_tuple,
-                    pitch_envelope,
+                    penvelope.absolute_time_tuple,
+                    penvelope.value_tuple,
+                    penvelope,
                 )
             ]
         )
-        end = 1 if not pitch_envelope.duration else None
-        average_cent_value = converted_pitch_envelope.get_average_parameter(end=end)
-        average_pitch = pitch_envelope.value_to_parameter(average_cent_value)
-        (
-            midi_pitch,
-            pitch_bending_number,
-        ) = self._mutwo_pitch_to_midi_pitch.convert(average_pitch)
+        end = 1 if not penvelope.duration else None
+        avg_cent = numerical_penvelope.get_average_parameter(end=end)
+        avg_p = penvelope.value_to_parameter(avg_cent)
+        midi_pitch, pb = self._mutwo_pitch_to_midi_pitch.convert(avg_p)
         first_pitch_bending_message_time = absolute_tick_start
         if absolute_tick_start != 0:
             # if possible add bending one tick earlier to avoid glitches
             first_pitch_bending_message_time -= 1
 
-        pitch_bending_message_list = []
-        if converted_pitch_envelope.is_static:
-            pitch_bending_message_list.append(
+        pbm_list = []  # pitch bending messages
+        if numerical_penvelope.is_static:
+            pbm_list.append(
                 mido.Message(
                     "pitchwheel",
                     channel=midi_channel,
-                    pitch=pitch_bending_number,
+                    pitch=pb,
                     time=first_pitch_bending_message_time,
                 )
             )
         else:
-            average_pitch_frequency = average_pitch.frequency
-            for tick in range(0, tick_count):
-                abstract_cents = converted_pitch_envelope.parameter_at(tick)
-                frequency = pitch_envelope.value_to_parameter(abstract_cents).frequency
-                cents = music_parameters.abc.Pitch.hertz_to_cents(
-                    average_pitch_frequency, frequency
-                )
-                pitch_bending_number = self._mutwo_pitch_to_midi_pitch._cent_deviation_to_pitch_bending_number.convert(
-                    cents
+            avg_p_f = avg_p.frequency
+            for t in range(0, tick_count):
+                abstract_cents = numerical_penvelope.parameter_at(t)
+                f = penvelope.value_to_parameter(abstract_cents).frequency
+                pb = self._mutwo_pitch_to_midi_pitch._cent_deviation_to_pitch_bending_number.convert(
+                    music_parameters.abc.Pitch.hertz_to_cents(avg_p_f, f)
                 )
                 pitch_bending_message = mido.Message(
                     "pitchwheel",
                     channel=midi_channel,
-                    pitch=pitch_bending_number,
-                    time=tick + absolute_tick_start,
+                    pitch=pb,
+                    time=t + absolute_tick_start,
                 )
-                pitch_bending_message_list.append(pitch_bending_message)
-        return midi_pitch, tuple(pitch_bending_message_list)
+                pbm_list.append(pitch_bending_message)
+        return midi_pitch, tuple(pbm_list)
 
     def _note_information_to_midi_message_tuple(
         self,
@@ -571,8 +504,7 @@ class EventToMidiFile(core_converters.abc.Converter):
         midi_channel: int,
     ) -> tuple[mido.Message, ...]:
         """Generate 'pitch bending', 'note on' and 'note off' messages for one tone."""
-
-        midi_pitch, pitch_bending_message_tuple = self._tune_pitch(
+        p, pitch_bending_message_tuple = self._tune_pitch(
             absolute_tick_start,
             absolute_tick_end,
             pitch,
@@ -581,18 +513,12 @@ class EventToMidiFile(core_converters.abc.Converter):
 
         midi_message_list = list(pitch_bending_message_tuple)
 
-        for time, message_name in (
+        for t, m in (
             (absolute_tick_start, "note_on"),
             (absolute_tick_end, "note_off"),
         ):
             midi_message_list.append(
-                mido.Message(
-                    message_name,
-                    note=midi_pitch,
-                    velocity=velocity,
-                    time=time,
-                    channel=midi_channel,
-                )
+                mido.Message(m, note=p, velocity=velocity, time=t, channel=midi_channel)
             )
 
         return tuple(midi_message_list)
@@ -614,32 +540,30 @@ class EventToMidiFile(core_converters.abc.Converter):
         Gets as an input relevant data for midi message generation that has been
         extracted from a :class:`mutwo.core_events.abc.Event` object.
         """
-
-        absolute_tick_start = self._beats_to_ticks(absolute_time)
-        absolute_tick_end = absolute_tick_start + self._beats_to_ticks(duration)
+        abs_tick_start = self._beats_to_ticks(absolute_time)
+        abs_tick_end = abs_tick_start + self._beats_to_ticks(duration)
         velocity = volume.midi_velocity
 
-        midi_message_list = []
+        mlist = []
 
         # add control messages
-        for control_message in control_message_tuple:
-            control_message.time = absolute_tick_start
-            midi_message_list.append(control_message)
+        for cm in control_message_tuple:
+            cm.time = abs_tick_start
+            mlist.append(cm)
 
         # add note related messages
-        for pitch in pitch_list:
-            midi_channel = next(available_midi_channel_tuple_cycle)
-            midi_message_list.extend(
+        for p in pitch_list:
+            mlist.extend(
                 self._note_information_to_midi_message_tuple(
-                    absolute_tick_start,
-                    absolute_tick_end,
+                    abs_tick_start,
+                    abs_tick_end,
                     velocity,
-                    pitch,
-                    midi_channel,
+                    p,
+                    next(available_midi_channel_tuple_cycle),
                 )
             )
 
-        return tuple(midi_message_list)
+        return tuple(mlist)
 
     def _simple_event_to_midi_message_tuple(
         self,
@@ -667,11 +591,11 @@ class EventToMidiFile(core_converters.abc.Converter):
             ("control_message_tuple", self._simple_event_to_control_message_tuple),
         ):
             try:
-                extracted_data = extraction_function(simple_event)
+                d = extraction_function(simple_event)
             except AttributeError:
                 is_rest = True
             else:
-                if extracted_data is None:
+                if d is None:
                     self._logger.warning(
                         "Extracting '{p}' from event '{simple_event}' "
                         "returned 'None'! Converter autoset this event to "
@@ -680,7 +604,7 @@ class EventToMidiFile(core_converters.abc.Converter):
                     is_rest = True
             if is_rest:
                 break
-            extracted_data_list.append(extracted_data)
+            extracted_data_list.append(d)
 
         # if not all relevant data could be extracted, simply ignore the
         # event
@@ -688,13 +612,12 @@ class EventToMidiFile(core_converters.abc.Converter):
             return tuple([])
 
         # otherwise generate midi messages from the extracted data
-        midi_message_tuple = self._extracted_data_to_midi_message_tuple(
+        return self._extracted_data_to_midi_message_tuple(
             absolute_time,
             simple_event.duration,
             available_midi_channel_tuple_cycle,
             *extracted_data_list,  # type: ignore
         )
-        return midi_message_tuple
 
     def _sequential_event_to_midi_message_tuple(
         self,
@@ -710,36 +633,30 @@ class EventToMidiFile(core_converters.abc.Converter):
         is the absolute time in ticks.
         """
 
-        midi_message_list: list[mido.Message] = []
-
-        available_midi_channel_tuple_cycle = itertools.cycle(
-            available_midi_channel_tuple
-        )
+        mlist: list[mido.Message] = []
+        mchannel_cycle = itertools.cycle(available_midi_channel_tuple)
 
         # fill midi track with the content of the sequential event
-        for local_absolute_time, simple_event_or_sequential_event in zip(
+        for local_abs_time, sim_or_seq in zip(
             sequential_event.absolute_time_tuple, sequential_event
         ):
-            concatenated_absolute_time = local_absolute_time + absolute_time
-            if isinstance(simple_event_or_sequential_event, core_events.SimpleEvent):
-                midi_message_tuple = self._simple_event_to_midi_message_tuple(
-                    simple_event_or_sequential_event,
-                    concatenated_absolute_time,
-                    available_midi_channel_tuple_cycle,
+            global_abs_time = local_abs_time + absolute_time
+            if isinstance(sim_or_seq, core_events.SimpleEvent):
+                mtuple = self._simple_event_to_midi_message_tuple(
+                    sim_or_seq, global_abs_time, mchannel_cycle
                 )
                 self._logger.debug(
-                    "SimpleEvent -> MidiMessageData:\n\t"
-                    f"{simple_event_or_sequential_event} -> {midi_message_tuple}"
+                    f"SimpleEvent -> MidiMessageData:\n\t{sim_or_seq} -> {mtuple}"
                 )
             else:
-                midi_message_tuple = self._sequential_event_to_midi_message_tuple(
-                    simple_event_or_sequential_event,
+                mtuple = self._sequential_event_to_midi_message_tuple(
+                    sim_or_seq,
                     available_midi_channel_tuple,
-                    concatenated_absolute_time,
+                    global_abs_time,
                 )
-            midi_message_list.extend(midi_message_tuple)
+            mlist.extend(mtuple)
 
-        return tuple(midi_message_list)
+        return tuple(mlist)
 
     def _midi_message_tuple_to_midi_track(
         self,
@@ -755,7 +672,6 @@ class EventToMidiFile(core_converters.abc.Converter):
             "Convert midi messages -> MidiTrack\n\t" f"msg-tuple: {midi_message_tuple}"
         )
 
-        # initialise midi track
         track = mido.MidiTrack([])
         track.append(mido.MetaMessage("instrument_name", name=self._instrument_name))
 
@@ -771,36 +687,21 @@ class EventToMidiFile(core_converters.abc.Converter):
         if not midi_message_tuple:
             return track
 
-        # sort midi data
-        sorted_midi_message_list = sorted(
-            midi_message_tuple, key=lambda message: message.time
-        )
-
-        # add end of track message
-        duration_in_ticks = self._beats_to_ticks(duration)
-        sorted_midi_message_list.append(
+        sorted_m = sorted(midi_message_tuple, key=lambda message: message.time)
+        sorted_m.append(
             mido.MetaMessage(
                 "end_of_track",
-                time=max((sorted_midi_message_list[-1].time, duration_in_ticks)),
+                time=max((sorted_m[-1].time, self._beats_to_ticks(duration))),
             )
         )
 
-        # convert from absolute to relative time
-        delta_tick_per_message_tuple = tuple(
-            message1.time - message0.time
-            for message0, message1 in zip(
-                sorted_midi_message_list, sorted_midi_message_list[1:]
-            )
-        )
-        delta_tick_per_message_tuple = (
-            sorted_midi_message_list[0].time,
-        ) + delta_tick_per_message_tuple
-        for dt, message in zip(delta_tick_per_message_tuple, sorted_midi_message_list):
-            message.time = dt
+        # absolute time => relative time
+        Δticks = tuple(m1.time - m0.time for m0, m1 in zip(sorted_m, sorted_m[1:]))
+        Δticks = (sorted_m[0].time,) + Δticks
+        for Δt, message in zip(Δticks, sorted_m):
+            message.time = Δt
 
-        # add midi data to midi track
-        track.extend(sorted_midi_message_list)
-
+        track.extend(sorted_m)
         return track
 
     # ###################################################################### #
@@ -810,7 +711,6 @@ class EventToMidiFile(core_converters.abc.Converter):
     def _add_simple_event_to_midi_file(
         self, simple_event: core_events.SimpleEvent, midi_file: mido.MidiFile
     ) -> None:
-        """Adds simple event to midi file."""
         self._add_sequential_event_to_midi_file(
             core_events.SequentialEvent([simple_event]), midi_file
         )
@@ -820,7 +720,6 @@ class EventToMidiFile(core_converters.abc.Converter):
         sequential_event: core_events.SequentialEvent[core_events.SimpleEvent],
         midi_file: mido.MidiFile,
     ) -> None:
-        """Adds sequential event to midi file."""
         self._add_simultaneous_event_to_midi_file(
             core_events.SimultaneousEvent([sequential_event]), midi_file
         )
@@ -832,35 +731,24 @@ class EventToMidiFile(core_converters.abc.Converter):
         ],
         midi_file: mido.MidiFile,
     ) -> None:
-        """Adds one simultaneous event to a midi file.
-
-        Depending on the midi_file_type either adds a tuple of MidiTrack
-        objects (for midi_file_type = 1) or adds only one MidiTrack
-        (for midi_file_type = 0).
-        """
-        # TODO(split this method, make it more readable!)
-
-        available_midi_channel_tuple_per_sequential_event = (
+        # Depending on the midi_file_type either adds a tuple of MidiTrack
+        # objects (for midi_file_type = 1) or adds only one MidiTrack
+        # (for midi_file_type = 0).
+        midi_channel_data = (
             self._find_available_midi_channel_tuple_per_sequential_event(
                 simultaneous_event
             )
         )
-
-        midi_data_per_sequential_event_tuple = tuple(
-            self._sequential_event_to_midi_message_tuple(
-                sequential_event, available_midi_channel_tuple
-            )
-            for sequential_event, available_midi_channel_tuple in zip(
-                simultaneous_event, available_midi_channel_tuple_per_sequential_event
-            )
+        midi_data_per_seq_tuple = tuple(
+            self._sequential_event_to_midi_message_tuple(seq, m)
+            for seq, m in zip(simultaneous_event, midi_channel_data)
         )
-
         duration = simultaneous_event.duration
 
         # midi file type 0 -> only one track
         if self._midi_file_type == 0:
             midi_data_for_one_track = functools.reduce(
-                operator.add, midi_data_per_sequential_event_tuple
+                operator.add, midi_data_per_seq_tuple
             )
             midi_track = self._midi_message_tuple_to_midi_track(
                 midi_data_for_one_track, duration, is_first_track=True
@@ -871,11 +759,9 @@ class EventToMidiFile(core_converters.abc.Converter):
         else:
             midi_track_iterator = (
                 self._midi_message_tuple_to_midi_track(
-                    midi_data, duration, is_first_track=nth_midi_data == 0
+                    m, duration, is_first_track=i == 0
                 )
-                for nth_midi_data, midi_data in enumerate(
-                    midi_data_per_sequential_event_tuple
-                )
+                for i, m in enumerate(midi_data_per_seq_tuple)
             )
             midi_file.tracks.extend(midi_track_iterator)
 
