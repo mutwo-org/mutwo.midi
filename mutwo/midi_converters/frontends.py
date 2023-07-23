@@ -26,7 +26,7 @@ __all__ = (
     "EventToMidiFile",
 )
 
-ConvertableEventUnion = (
+ConvertableEvent = (
     core_events.SimpleEvent
     | core_events.SequentialEvent[core_events.SimpleEvent]
     | core_events.SimultaneousEvent[
@@ -870,7 +870,7 @@ class EventToMidiFile(core_converters.abc.Converter):
             midi_file.tracks.extend(midi_track_iterator)
 
     def _event_to_midi_file(
-        self, event_to_convert: ConvertableEventUnion
+        self, event_to_convert: ConvertableEvent
     ) -> mido.MidiFile:
         """Convert mutwo event object to mido `MidiFile` object."""
 
@@ -890,7 +890,7 @@ class EventToMidiFile(core_converters.abc.Converter):
                 f"Can't convert object '{event_to_convert}' "
                 f"of type '{type(event_to_convert)}' to a MidiFile. "
                 "Supported types include all inherited classes "
-                f"from '{ConvertableEventUnion}'."
+                f"from '{ConvertableEvent}'."
             )
 
         return midi_file
@@ -900,7 +900,7 @@ class EventToMidiFile(core_converters.abc.Converter):
     # ###################################################################### #
 
     def convert(
-        self, event_to_convert: ConvertableEventUnion, path: typing.Optional[str] = None
+        self, event_to_convert: ConvertableEvent, path: typing.Optional[str] = None
     ) -> mido.MidiFile:
         """Render a Midi file to the converters path attribute from the given event.
 
