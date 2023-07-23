@@ -345,7 +345,14 @@ class MidiFileToEvent(core_converters.abc.Converter):
                 message_type_to_midi_message_list["note_off"]
             )
         except KeyError:
-            self._logger.debug("No 'note_off' messages were found!")
+            self._logger.warning(
+                "No 'note_off' messages were found! "
+                "This is strange, because 'note_on' messages could be found. "
+                "Maybe you have a midi file which doesn't use 'note_off'"
+                "messages but only 'note_on' messages with velocity=0?"
+                " This is currently not supported, see"
+                " also https://github.com/mutwo-org/mutwo.midi/issues/4."
+            )
             return tuple([])
 
         note_pair_list = []
