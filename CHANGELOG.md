@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.11.0] - 2023-07-23
+
+### Added
+- debug messages in converters
+
+### Fixed
+- converters/EventToMidiFile: Fix crash if extractor returns None (see [here](https://github.com/mutwo-org/mutwo.midi/commit/8818873b40133163436c709a66fde778bf376ab0))
+- converters/EventToMidiFile: Fix crash for empty Sim[Seq, ...] (see [here](https://github.com/mutwo-org/mutwo.midi/commit/4802bf133f423451842b27ba747c1766e54908fd))
+
+
 ## [0.10.0] - 2022-11-06
 
 ### Dropped
