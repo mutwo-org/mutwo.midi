@@ -5,7 +5,6 @@ import copy
 import typing
 
 import mido
-import numpy as np
 
 try:
     import quicktions as fractions
@@ -382,7 +381,7 @@ class MidiFileToEvent(core_converters.abc.Converter):
             midi_pitch_list.append((note_on.note, 0))  # type: ignore
             velocity_list.append(note_on.velocity)  # type: ignore
 
-        average_velocity = int(np.average(velocity_list))
+        average_velocity = int(sum(velocity_list) / len(velocity_list))
         mutwo_volume = self._midi_velocity_to_mutwo_volume(average_velocity)
 
         mutwo_pitch_list = [

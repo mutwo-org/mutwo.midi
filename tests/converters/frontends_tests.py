@@ -3,7 +3,6 @@ import os
 import unittest
 
 import mido  # type: ignore
-import numpy as np  # type: ignore
 
 try:
     import quicktions as fractions
@@ -15,6 +14,7 @@ from mutwo import core_parameters
 from mutwo import core_utilities
 from mutwo import music_events
 from mutwo import music_parameters
+from mutwo import music_utilities
 from mutwo import midi_converters
 
 
@@ -433,7 +433,7 @@ class EventToMidiFileTest(unittest.TestCase):
         n_ticks = 100
 
         pitchwheel_message_list = []
-        for tick, tick_percentage in enumerate(np.linspace(0, 1, n_ticks, dtype=float)):
+        for tick, tick_percentage in enumerate(music_utilities.linear_space(0, 1, n_ticks)):
             pitch_bend = (
                 int(tick_percentage * midi_converters.constants.MAXIMUM_PITCH_BEND)
                 - midi_converters.constants.NEUTRAL_PITCH_BEND
@@ -481,7 +481,7 @@ class EventToMidiFileTest(unittest.TestCase):
 
         pitchwheel_message_list = []
         for tick, tick_percentage in enumerate(
-            np.linspace(0.25, 0.75, n_ticks // 2, dtype=float)
+            music_utilities.linear_space(0.25, 0.75, n_ticks // 2)
         ):
             pitch_bend = (
                 int(midi_converters.constants.MAXIMUM_PITCH_BEND * tick_percentage)
