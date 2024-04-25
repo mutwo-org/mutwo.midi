@@ -107,15 +107,13 @@ class EventToMidiFileTest(unittest.TestCase):
     def setUpClass(cls):
         cls.midi_file_path = "tests/converters/test.mid"
         cls.converter = midi_converters.EventToMidiFile()
-        cls.sequential_event = core_events.SequentialEvent(
+        cls.consecution = core_events.Consecution(
             [
                 music_events.NoteLike(music_parameters.WesternPitch(pitch), 1, 1)
                 for pitch in "c d e f g a b a g f e d c".split(" ")
             ]
         )
-        cls.simultaneous_event = core_events.SimultaneousEvent(
-            [cls.sequential_event, cls.sequential_event]
-        )
+        cls.concurrence = core_events.Concurrence([cls.consecution, cls.consecution])
 
     # ########################################################### #
     # tests to make sure that the methods return the expected     #
@@ -191,34 +189,30 @@ class EventToMidiFileTest(unittest.TestCase):
             distribute_midi_channels=True, midi_channel_count_per_track=1
         )
 
-        n_sequential_events = 17
-        simultaneous_event = core_events.SimultaneousEvent(
+        n_consecutions = 17
+        concurrence = core_events.Concurrence(
             [
-                core_events.SequentialEvent([music_events.NoteLike([], 2, 1)])
-                for _ in range(n_sequential_events)
+                core_events.Consecution([music_events.NoteLike([], 2, 1)])
+                for _ in range(n_consecutions)
             ]
         )
 
         self.assertEqual(
-            converter0._find_available_midi_channel_tuple_per_sequential_event(
-                simultaneous_event
-            ),
+            converter0._find_available_midi_channel_tuple_per_consecution(concurrence),
             tuple(
                 midi_converters.configurations.DEFAULT_AVAILABLE_MIDI_CHANNEL_TUPLE
-                for _ in range(n_sequential_events)
+                for _ in range(n_consecutions)
             ),
         )
 
         self.assertEqual(
-            converter1._find_available_midi_channel_tuple_per_sequential_event(
-                simultaneous_event
-            ),
+            converter1._find_available_midi_channel_tuple_per_consecution(concurrence),
             tuple(
                 (
                     nth_channel
                     % len(midi_converters.constants.ALLOWED_MIDI_CHANNEL_TUPLE),
                 )
-                for nth_channel in range(n_sequential_events)
+                for nth_channel in range(n_consecutions)
             ),
         )
 
@@ -236,8 +230,8 @@ class EventToMidiFileTest(unittest.TestCase):
                     int(converter._ticks_per_beat * n_beats),
                 )
 
-    def test_tempo_envelope_to_midi_messages(self):
-        tempo_envelope = core_events.TempoEnvelope(
+    def test_flex_tempo_to_midi_messages(self):
+        flex_tempo = core_parameters.FlexTempo(
             ((0, 60), (2, 60), (2, 40), (5, 40), (5, 100))
         )
         midi_message_tuple = tuple(
@@ -246,20 +240,20 @@ class EventToMidiFileTest(unittest.TestCase):
                 tempo=self.converter._beats_per_minute_to_beat_length_in_microseconds(
                     level
                 ),
-                time=absolute_time.duration_in_floats
+                time=absolute_time.beat_count
                 * midi_converters.configurations.DEFAULT_TICKS_PER_BEAT,
             )
             for absolute_time, level in zip(
                 core_utilities.accumulate_from_n(
-                    tempo_envelope.get_parameter("duration"),
+                    flex_tempo.get_parameter("duration"),
                     core_parameters.DirectDuration(0),
                 ),
-                tempo_envelope.value_tuple,
+                flex_tempo.value_tuple,
             )
         )
 
         self.assertEqual(
-            self.converter._tempo_envelope_to_midi_message_tuple(tempo_envelope),
+            self.converter._tempo_to_midi_message_tuple(flex_tempo),
             midi_message_tuple,
         )
 
@@ -317,7 +311,7 @@ class EventToMidiFileTest(unittest.TestCase):
                 0,
                 10,
                 (music_parameters.WesternPitch("c", 4),),
-                music_parameters.DecibelVolume(0),
+                music_parameters.DirectVolume(0),
                 tuple([]),
             ),
             (
@@ -327,7 +321,7 @@ class EventToMidiFileTest(unittest.TestCase):
                     music_parameters.WesternPitch("ds", 2),
                     music_parameters.JustIntonationPitch("3/7"),
                 ),
-                music_parameters.DirectVolume(0.1212),
+                music_parameters.AmplitudeVolume(0.1212),
                 (mido.Message("control_change", channel=0, value=100, time=22),),
             ),
         ):
@@ -418,22 +412,23 @@ class EventToMidiFileTest(unittest.TestCase):
             ),
         )
 
-    def test_tune_pitch_with_constant_envelope(self):
+    def test_tune_pitch_with_constant_flex_pitch(self):
         midi_channel = 1
-        pitch = music_parameters.DirectPitch(440)
-        pitch.envelope[:] = [
-            core_events.SimpleEvent(100).set_parameter(
-                "pitch_interval", music_parameters.DirectPitchInterval(-200)
-            ),
-            core_events.SimpleEvent(0).set_parameter(
-                "pitch_interval", music_parameters.DirectPitchInterval(200)
-            ),
-        ]
+        pitch = music_parameters.FlexPitch(
+            [
+                # 440 -200ct
+                [0, music_parameters.DirectPitch(391.99543598174927)],
+                # 440 +200ct
+                [100, music_parameters.DirectPitch(493.8833012561241)],
+            ]
+        )
         absolute_tick_start = 1000
         n_ticks = 100
 
         pitchwheel_message_list = []
-        for tick, tick_percentage in enumerate(music_utilities.linear_space(0, 1, n_ticks)):
+        for tick, tick_percentage in enumerate(
+            music_utilities.linear_space(0, 1, n_ticks)
+        ):
             pitch_bend = (
                 int(tick_percentage * midi_converters.constants.MAXIMUM_PITCH_BEND)
                 - midi_converters.constants.NEUTRAL_PITCH_BEND
@@ -466,18 +461,17 @@ class EventToMidiFileTest(unittest.TestCase):
                 expected_pitchwheel_message.time,  # type: ignore
             )
 
-    def test_tune_pitch_with_centering_envelope(self):
+    def test_tune_pitch_with_centering_flex_pitch(self):
         n_ticks = 1000
         midi_channel = 1
-        pitch = music_parameters.DirectPitch(440)
-        pitch.envelope[:] = [
-            core_events.SimpleEvent(n_ticks / 2).set_parameter(
-                "pitch_interval", music_parameters.DirectPitchInterval(-200)
-            ),
-            core_events.SimpleEvent(n_ticks / 2).set_parameter(
-                "pitch_interval", music_parameters.DirectPitchInterval(0)
-            ),
-        ]
+        pitch = music_parameters.FlexPitch(
+            [
+                # 440 -200ct
+                [0, music_parameters.DirectPitch(391.99543598174927)],
+                [n_ticks / 2, music_parameters.DirectPitch(440)],
+                [n_ticks, music_parameters.DirectPitch(440)],
+            ]
+        )
 
         pitchwheel_message_list = []
         for tick, tick_percentage in enumerate(
@@ -523,7 +517,7 @@ class EventToMidiFileTest(unittest.TestCase):
                 expected_pitchwheel_message.time,  # type: ignore
             )
 
-    def test_simple_event_to_midi_message_tuple(self):
+    def test_chronon_to_midi_message_tuple(self):
         # loop only channel 2
         midi_channel = 2
         available_midi_channels_cycle = itertools.cycle((midi_channel,))
@@ -533,9 +527,9 @@ class EventToMidiFileTest(unittest.TestCase):
         # ########################### #
 
         # a rest shouldn't produce any messages
-        rest = core_events.SimpleEvent(2)
+        rest = core_events.Chronon(2)
         self.assertEqual(
-            self.converter._simple_event_to_midi_message_tuple(
+            self.converter._chronon_to_midi_message_tuple(
                 rest, 0, available_midi_channels_cycle
             ),
             tuple([]),
@@ -549,7 +543,7 @@ class EventToMidiFileTest(unittest.TestCase):
         absolute_time1 = 32
         absolute_time1_in_ticks = self.converter._beats_to_ticks(absolute_time1)
         self.assertEqual(
-            self.converter._simple_event_to_midi_message_tuple(
+            self.converter._chronon_to_midi_message_tuple(
                 tone, absolute_time1, available_midi_channels_cycle
             ),
             (
@@ -596,7 +590,7 @@ class EventToMidiFileTest(unittest.TestCase):
         absolute_time2 = 2
         absolute_time2_in_ticks = self.converter._beats_to_ticks(absolute_time2)
         self.assertEqual(
-            self.converter._simple_event_to_midi_message_tuple(
+            self.converter._chronon_to_midi_message_tuple(
                 chord, absolute_time2, available_midi_channels_cycle
             ),
             (
@@ -645,19 +639,19 @@ class EventToMidiFileTest(unittest.TestCase):
             ),
         )
 
-    def test_sequential_event_to_midi_message_tuple(self):
+    def test_consecution_to_midi_message_tuple(self):
         pass
 
     def test_midi_message_tuple_to_midi_track(self):
         pass
 
-    def test_add_simple_event_to_midi_file(self):
+    def test_add_chronon_to_midi_file(self):
         pass
 
-    def test_add_sequential_event_to_midi_file(self):
+    def test_add_consecution_to_midi_file(self):
         pass
 
-    def test_add_simultaneous_event_to_midi_file(self):
+    def test_add_concurrence_to_midi_file(self):
         pass
 
     def test_event_to_midi_file(self):
@@ -675,27 +669,25 @@ class EventToMidiFileTest(unittest.TestCase):
         converter1 = midi_converters.EventToMidiFile(midi_file_type=1)
 
         for converter in (converter0, converter1):
-            for event in (self.sequential_event, self.simultaneous_event):
+            for event in (self.consecution, self.concurrence):
                 converter.convert(event, self.midi_file_path)
                 midi_file = mido.MidiFile(self.midi_file_path)
                 self.assertEqual(midi_file.type, converter._midi_file_type)
                 os.remove(self.midi_file_path)
 
-    def test_overriding_simple_event_to_arguments(self):
+    def test_overriding_chronon_to_arguments(self):
         # make sure generated midi file has the correct midi file type
 
         constant_pitch = music_parameters.WesternPitch("c")
-        constant_volume = music_parameters.DirectVolume(1)
+        constant_volume = music_parameters.AmplitudeVolume(1)
         constant_control_message = mido.Message("control_change", value=100)
         converter = midi_converters.EventToMidiFile(
-            simple_event_to_pitch_list=lambda event: (constant_pitch,),
-            simple_event_to_volume=lambda event: constant_volume,
-            simple_event_to_control_message_tuple=lambda event: (
-                constant_control_message,
-            ),
+            chronon_to_pitch_list=lambda event: (constant_pitch,),
+            chronon_to_volume=lambda event: constant_volume,
+            chronon_to_control_message_tuple=lambda event: (constant_control_message,),
         )
 
-        converter.convert(self.sequential_event, self.midi_file_path)
+        converter.convert(self.consecution, self.midi_file_path)
         midi_file = mido.MidiFile(self.midi_file_path)
         control_message_index = 0
         note_on_message_index = 0
@@ -713,8 +705,8 @@ class EventToMidiFileTest(unittest.TestCase):
                 self.assertEqual(message.value, constant_control_message.value)
                 control_message_index += 1
 
-        self.assertEqual(note_on_message_index, len(self.sequential_event))
-        self.assertEqual(control_message_index, len(self.sequential_event))
+        self.assertEqual(note_on_message_index, len(self.consecution))
+        self.assertEqual(control_message_index, len(self.consecution))
 
         os.remove(self.midi_file_path)
 
@@ -735,7 +727,7 @@ class EventToMidiFileTest(unittest.TestCase):
             converter = midi_converters.EventToMidiFile(
                 available_midi_channel_tuple=available_midi_channel_tuple
             )
-            converter.convert(self.sequential_event, self.midi_file_path)
+            converter.convert(self.consecution, self.midi_file_path)
             midi_file = mido.MidiFile(self.midi_file_path)
             available_midi_channel_cycle = itertools.cycle(available_midi_channel_tuple)
             for message in midi_file:
@@ -747,56 +739,56 @@ class EventToMidiFileTest(unittest.TestCase):
 
     def test_distribute_midi_channels_argument(self):
         # makes sure mutwo distributes midi channels on different
-        # sequential events according to the behaviour that is written
+        # consecutions according to the behaviour that is written
         # in the EventToMidiFile docstring
 
         pass
 
     def test_convert_without_path(self):
         """No midi file should have been created"""
-        simple_event = core_events.SimpleEvent(1)
-        midi_file = self.converter.convert(simple_event)
+        chronon = core_events.Chronon(1)
+        midi_file = self.converter.convert(chronon)
         self.assertFalse(os.path.exists(self.midi_file_path))
         self.assertTrue(midi_file)
         self.assertIsInstance(midi_file, mido.MidiFile)
 
     def test_convert_with_path(self):
         """A midi file should have been created"""
-        simple_event = core_events.SimpleEvent(1)
-        midi_file = self.converter.convert(simple_event, self.midi_file_path)
+        chronon = core_events.Chronon(1)
+        midi_file = self.converter.convert(chronon, self.midi_file_path)
         self.assertTrue(os.path.exists(self.midi_file_path))
         self.assertTrue(midi_file)
         self.assertIsInstance(midi_file, mido.MidiFile)
         os.remove(self.midi_file_path)
 
     def test_convert_event_with_small_duration(self):
-        simple_event = core_events.SimpleEvent(fractions.Fraction(1, 4))
-        self.converter.convert(simple_event, self.midi_file_path)
+        chronon = core_events.Chronon(fractions.Fraction(1, 4))
+        self.converter.convert(chronon, self.midi_file_path)
         self.assertTrue(os.path.exists(self.midi_file_path))
         os.remove(self.midi_file_path)
 
     def test_convert_with_bad_parameters(self):
         """Ensure converter doesn't break if some parameters are set to None"""
-        simple_event = core_events.SimpleEvent(2)
+        chronon = core_events.Chronon(2)
         for p in ("pitch_list", "volume", "midi_control_message_tuple"):
-            simple_event.set_parameter(p, None)
-        self.assertTrue(self.converter.convert(simple_event))
+            chronon.set_parameter(p, None)
+        self.assertTrue(self.converter.convert(chronon))
         # Logger should raise a warning
         with self.assertLogs(self.converter._logger):
-            self.converter.convert(simple_event)
+            self.converter.convert(chronon)
 
     def test_convert_empty(self):
         """Ensure multiple empty midi tracks don't fail
 
-        If we have a SimultaneousEvent with multiple SequentialEvent,
-        only the first SequentialEvent gets some structural basic midi messages
+        If we have a Concurrence with multiple Consecution,
+        only the first Consecution gets some structural basic midi messages
         (like instrument, tempo, etc.). All other midi tracks are empty.
         The converter needs to support this case and must not crash.
         """
         self.assertTrue(
             self.converter.convert(
-                core_events.SimultaneousEvent(
-                    [core_events.SequentialEvent([]), core_events.SequentialEvent([])]
+                core_events.Concurrence(
+                    [core_events.Consecution([]), core_events.Consecution([])]
                 )
             )
         )

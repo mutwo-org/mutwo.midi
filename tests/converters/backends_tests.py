@@ -51,7 +51,7 @@ class PitchBendingNumberToDirectPitchIntervalTest(unittest.TestCase):
             round(
                 self.pitch_bending_number_to_direct_pitch_interval0.convert(
                     int(8191 // 2)
-                ).interval
+                ).cents
             ),
             100,
         )
@@ -59,7 +59,7 @@ class PitchBendingNumberToDirectPitchIntervalTest(unittest.TestCase):
             round(
                 self.pitch_bending_number_to_direct_pitch_interval0.convert(
                     -int(8191 // 2)
-                ).interval
+                ).cents
             ),
             -100,
         )
@@ -68,7 +68,7 @@ class PitchBendingNumberToDirectPitchIntervalTest(unittest.TestCase):
             round(
                 self.pitch_bending_number_to_direct_pitch_interval1.convert(
                     int(8191 // 2)
-                ).interval
+                ).cents
             ),
             600,
         )
@@ -83,22 +83,22 @@ class MidiPitchToMutwoPitchTest(object):
             self.expected_pitch_type,
         )
 
-    def test_convert_for_frequency(self):
+    def test_convert_for_hertz(self):
         """Ensure the resulting frequency is correct"""
 
         self.assertAlmostEqual(
-            self.midi_pitch_to_mutwo_pitch.convert((69, 0)).frequency,
+            self.midi_pitch_to_mutwo_pitch.convert((69, 0)).hertz,
             440,
         )
         self.assertAlmostEqual(
-            self.midi_pitch_to_mutwo_pitch.convert((69 + 12, 0)).frequency,
+            self.midi_pitch_to_mutwo_pitch.convert((69 + 12, 0)).hertz,
             880,
         )
         self.assertAlmostEqual(
-            self.midi_pitch_to_mutwo_pitch.convert((70, 0)).frequency, 466.164, delta=3
+            self.midi_pitch_to_mutwo_pitch.convert((70, 0)).hertz, 466.164, delta=3
         )
         self.assertAlmostEqual(
-            self.midi_pitch_to_mutwo_pitch.convert((69, int(8191 // 2))).frequency,
+            self.midi_pitch_to_mutwo_pitch.convert((69, int(8191 // 2))).hertz,
             466.164,
             delta=3,
         )
@@ -151,24 +151,22 @@ class MidiFileToEventTest(unittest.TestCase):
         self.assertEqual(self.midi_file_to_event._tick_to_duration(30, 10), 3)
         self.assertEqual(self.midi_file_to_event._tick_to_duration(5, 10), 0.5)
 
-    def test_add_simple_event_to_sequential_event(self):
-        sequential_event0 = core_events.SequentialEvent([])
-        self.midi_file_to_event._add_simple_event_to_sequential_event(
-            sequential_event0, 0, core_events.SimpleEvent(10)
+    def test_add_chronon_to_consecution(self):
+        consecution0 = core_events.Consecution([])
+        self.midi_file_to_event._add_chronon_to_consecution(
+            consecution0, 0, core_events.Chronon(10)
         )
         self.assertEqual(
-            sequential_event0,
-            core_events.SequentialEvent([core_events.SimpleEvent(10)]),
+            consecution0,
+            core_events.Consecution([core_events.Chronon(10)]),
         )
-        sequential_event1 = core_events.SequentialEvent([])
-        self.midi_file_to_event._add_simple_event_to_sequential_event(
-            sequential_event1, 5, core_events.SimpleEvent(10)
+        consecution1 = core_events.Consecution([])
+        self.midi_file_to_event._add_chronon_to_consecution(
+            consecution1, 5, core_events.Chronon(10)
         )
         self.assertEqual(
-            sequential_event1,
-            core_events.SequentialEvent(
-                [core_events.SimpleEvent(5), core_events.SimpleEvent(10)]
-            ),
+            consecution1,
+            core_events.Consecution([core_events.Chronon(5), core_events.Chronon(10)]),
         )
 
     def test_note_pair_tuple_to_start_and_stop_tuple_to_note_pair_list(self):
@@ -329,9 +327,9 @@ class MidiFileToEventTest(unittest.TestCase):
     #                    test private methods                                #
     # ###################################################################### #
 
-    def test_note_pair_list_to_simple_event(self):
+    def test_note_pair_list_to_chronon(self):
         self.assertEqual(
-            self.midi_file_to_event._note_pair_list_to_simple_event(
+            self.midi_file_to_event._note_pair_list_to_chronon(
                 [
                     (
                         mido.Message("note_on", note=69, velocity=127, time=0),
@@ -347,7 +345,7 @@ class MidiFileToEventTest(unittest.TestCase):
             ),
         )
         self.assertEqual(
-            self.midi_file_to_event._note_pair_list_to_simple_event(
+            self.midi_file_to_event._note_pair_list_to_chronon(
                 [
                     (
                         mido.Message("note_on", note=69, velocity=127, time=0),
@@ -363,7 +361,7 @@ class MidiFileToEventTest(unittest.TestCase):
             ),
         )
         self.assertEqual(
-            self.midi_file_to_event._note_pair_list_to_simple_event(
+            self.midi_file_to_event._note_pair_list_to_chronon(
                 [
                     (
                         mido.Message("note_on", note=69, velocity=1, time=20),
@@ -413,9 +411,9 @@ class MidiFileToEventTest(unittest.TestCase):
         )
         self.assertEqual(
             self.midi_file_to_event.convert(midi_file_to_convert),
-            core_events.SimultaneousEvent(
+            core_events.Concurrence(
                 [
-                    core_events.SequentialEvent(
+                    core_events.Consecution(
                         [
                             music_events.NoteLike(
                                 pitch_list=[

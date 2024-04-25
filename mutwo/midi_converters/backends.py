@@ -115,8 +115,8 @@ class MidiPitchToDirectPitch(MidiPitchToMutwoPitch):
         self, midi_pitch_to_convert: midi_converters.constants.MidiPitch
     ) -> music_parameters.DirectPitch:
         midi_note, pitch_bend = midi_pitch_to_convert
-        frequency = music_parameters.constants.MIDI_PITCH_FREQUENCY_TUPLE[midi_note]
-        direct_pitch = music_parameters.DirectPitch(frequency)
+        hertz = music_parameters.constants.MIDI_PITCH_FREQUENCY_TUPLE[midi_note]
+        direct_pitch = music_parameters.DirectPitch(hertz)
         pitch_interval = self._pitch_bending_number_to_pitch_interval(pitch_bend)
         return direct_pitch.add(pitch_interval)
 
@@ -186,11 +186,11 @@ StartAndStopTupleToNotePairList = dict[tuple[int, int], list[NotePair]]
 class MidiFileToEvent(core_converters.abc.Converter):
     """Convert a midi file to a mutwo event.
 
-    :param mutwo_parameter_tuple_to_simple_event: A callable which converts a
+    :param mutwo_parameter_tuple_to_chronon: A callable which converts a
         tuple of mutwo parameters (duration, pitch list, volume) to a
-        :class:`mutwo.core_events.SimpleEvent`. In default state mutwo
+        :class:`mutwo.core_events.Chronon`. In default state mutwo
          generates a :class:`mutwo.music_events.NoteLike`.
-    :type mutwo_parameter_tuple_to_simple_event: typing.Callable[[tuple[core_constants.DurationType, music_parameters.abc.Pitch, music_parameters.abc.Volume]], core_events.SimpleEvent]
+    :type mutwo_parameter_tuple_to_chronon: typing.Callable[[tuple[core_parameters.abc.Duration.Type, music_parameters.abc.Pitch, music_parameters.abc.Volume]], core_events.Chronon]
     :param midi_pitch_to_mutwo_pitch: Callable object which converts
         midi pitch (integer) to a :class:`mutwo.music_parameters.abc.Pitch`.
         Default to :class:`MidiPitchToMutwoMidiPitch`.
@@ -215,9 +215,9 @@ class MidiFileToEvent(core_converters.abc.Converter):
 
     def __init__(
         self,
-        mutwo_parameter_dict_to_simple_event: typing.Callable[
+        mutwo_parameter_dict_to_chronon: typing.Callable[
             [core_converters.MutwoParameterDict],
-            core_events.SimpleEvent,
+            core_events.Chronon,
         ] = music_converters.MutwoParameterDictToNoteLike(),
         midi_pitch_to_mutwo_pitch: typing.Callable[
             [midi_converters.constants.MidiPitch], music_parameters.abc.Pitch
@@ -227,8 +227,8 @@ class MidiFileToEvent(core_converters.abc.Converter):
         ] = MidiVelocityToWesternVolume(),
     ):
         self._logger = core_utilities.get_cls_logger(type(self))
-        self._mutwo_parameter_dict_to_simple_event = (
-            mutwo_parameter_dict_to_simple_event
+        self._mutwo_parameter_dict_to_chronon = (
+            mutwo_parameter_dict_to_chronon
         )
         self._midi_pitch_to_mutwo_pitch = midi_pitch_to_mutwo_pitch
         self._midi_velocity_to_mutwo_volume = midi_velocity_to_mutwo_volume
@@ -277,16 +277,16 @@ class MidiFileToEvent(core_converters.abc.Converter):
         return start_and_stop_tuple_to_note_pair_list
 
     @staticmethod
-    def _add_simple_event_to_sequential_event(
-        sequential_event: core_events.SequentialEvent,
+    def _add_chronon_to_consecution(
+        consecution: core_events.Consecution,
         start: int,
-        simple_event: core_events.SimpleEvent,
+        chronon: core_events.Chronon,
     ):
-        difference = start - sequential_event.duration.duration
+        difference = start - consecution.duration.beat_count
         if difference > 0:
-            rest = core_events.SimpleEvent(difference)
-            sequential_event.append(rest)
-        sequential_event.append(simple_event)
+            rest = core_events.Chronon(difference)
+            consecution.append(rest)
+        consecution.append(chronon)
 
     @staticmethod
     def _tick_to_duration(
@@ -370,9 +370,9 @@ class MidiFileToEvent(core_converters.abc.Converter):
         note_pair_list.sort(key=lambda note_pair: note_pair[0].time)
         return tuple(note_pair_list)
 
-    def _note_pair_list_to_simple_event(
+    def _note_pair_list_to_chronon(
         self, note_pair_list: list[NotePair], ticks_per_beat: int
-    ) -> core_events.SimpleEvent:
+    ) -> core_events.Chronon:
         midi_pitch_list = []
         velocity_list = []
         for note_pair in note_pair_list:
@@ -400,21 +400,21 @@ class MidiFileToEvent(core_converters.abc.Converter):
             music_converters.configurations.DEFAULT_PITCH_LIST_TO_SEARCH_NAME: mutwo_pitch_list,
             music_converters.configurations.DEFAULT_VOLUME_TO_SEARCH_NAME: mutwo_volume,
         }
-        simple_event = self._mutwo_parameter_dict_to_simple_event(mutwo_parameter_dict)
+        chronon = self._mutwo_parameter_dict_to_chronon(mutwo_parameter_dict)
         self._logger.debug(
-            f"Midi data -> Mutwo data -> SimpleEvent:\n\t"
+            f"Midi data -> Mutwo data -> Chronon:\n\t"
             f"Midi data: (tick={tick},velocity_list={velocity_list},midi_pitch_list={midi_pitch_list})\n\t"
             f"Mutwo data: {mutwo_parameter_dict}\n\t"
-            f"SimpleEvent: {simple_event}"
+            f"Chronon: {chronon}"
         )
-        return simple_event
+        return chronon
 
-    def _note_pair_tuple_to_simultaneous_event(
+    def _note_pair_tuple_to_concurrence(
         self, note_pair_tuple: NotePairTuple, ticks_per_beat: int
-    ) -> core_events.SimultaneousEvent[
-        core_events.SequentialEvent[core_events.SimpleEvent]
+    ) -> core_events.Concurrence[
+        core_events.Consecution[core_events.Chronon]
     ]:
-        simultaneous_event = core_events.SimultaneousEvent([])
+        concurrence = core_events.Concurrence([])
 
         start_and_stop_tuple_to_note_pair_list = (
             MidiFileToEvent._note_pair_tuple_to_start_and_stop_tuple_to_note_pair_list(
@@ -430,40 +430,40 @@ class MidiFileToEvent(core_converters.abc.Converter):
             note_pair_list = start_and_stop_tuple_to_note_pair_list[
                 start_and_stop_tuple
             ]
-            simple_event = self._note_pair_list_to_simple_event(
+            chronon = self._note_pair_list_to_chronon(
                 note_pair_list, ticks_per_beat
             )
             is_added = False
-            for sequential_event in simultaneous_event:
-                duration = sequential_event.duration
+            for consecution in concurrence:
+                duration = consecution.duration
                 difference = start - duration
                 if difference >= 0:
-                    self._add_simple_event_to_sequential_event(
-                        sequential_event, start, simple_event
+                    self._add_chronon_to_consecution(
+                        consecution, start, chronon
                     )
                     is_added = True
                     break
             if not is_added:
-                simultaneous_event.append(core_events.SequentialEvent([]))
-                self._add_simple_event_to_sequential_event(
-                    simultaneous_event[-1], start, simple_event
+                concurrence.append(core_events.Consecution([]))
+                self._add_chronon_to_consecution(
+                    concurrence[-1], start, chronon
                 )
 
-        return simultaneous_event
+        return concurrence
 
-    def _note_pair_tuple_and_set_tempo_message_list_to_simultaneous_event(
+    def _note_pair_tuple_and_set_tempo_message_list_to_concurrence(
         self,
         note_pair_tuple: NotePairTuple,
         set_tempo_message_list: list[mido.Message | mido.MetaMessage],
         ticks_per_beat: int,
-    ) -> core_events.SimultaneousEvent[
-        core_events.SequentialEvent[core_events.SimpleEvent]
+    ) -> core_events.Concurrence[
+        core_events.Consecution[core_events.Chronon]
     ]:
-        simultaneous_event = self._note_pair_tuple_to_simultaneous_event(
+        concurrence = self._note_pair_tuple_to_concurrence(
             note_pair_tuple, ticks_per_beat
         )
         # TODO(apply tempo messages)
-        return simultaneous_event
+        return concurrence
 
     def _midi_file_to_mutwo_event(
         self, midi_file_to_convert: mido.MidiFile
@@ -477,7 +477,7 @@ class MidiFileToEvent(core_converters.abc.Converter):
             set_tempo_message_list = message_type_to_midi_message_list["set_tempo"]
         except KeyError:
             set_tempo_message_list = []
-        return self._note_pair_tuple_and_set_tempo_message_list_to_simultaneous_event(
+        return self._note_pair_tuple_and_set_tempo_message_list_to_concurrence(
             note_pair_tuple, set_tempo_message_list, ticks_per_beat
         )
 

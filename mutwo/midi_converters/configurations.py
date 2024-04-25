@@ -18,16 +18,14 @@ DEFAULT_MIDI_INSTRUMENT_NAME = "Acoustic Grand Piano"
 DEFAULT_MIDI_CHANNEL_COUNT_PER_TRACK = 1
 """default value for ``midi_channel_count_per_track`` in `mutwo.midi_converters.EventToMidiFile`"""
 
-DEFAULT_TEMPO_ENVELOPE: core_events.TempoEnvelope = core_events.TempoEnvelope(
-    ((0, core_parameters.DirectTempoPoint(120, 1)), (1, core_parameters.DirectTempoPoint(120, 1))),
-)
-"""default value for ``tempo_envelope`` in `mutwo.midi_converters.EventToMidiFile`"""
+DEFAULT_TEMPO: core_parameters.abc.Tempo = core_parameters.DirectTempo(120)
+"""default value for ``tempo`` in `mutwo.midi_converters.EventToMidiFile`"""
 
 DEFAULT_TICKS_PER_BEAT = 480
 """default value for ``ticks_per_beat`` in `mutwo.midi_converters.EventToMidiFile`"""
 
 DEFAULT_CONTROL_MESSAGE_TUPLE_ATTRIBUTE_NAME = "control_message_tuple"
-"""The expected attribute name of a :class:`mutwo.core_events.SimpleEvent` for control messages."""
+"""The expected attribute name of a :class:`mutwo.core_events.Chronon` for control messages."""
 
 
 del core_events, core_parameters
