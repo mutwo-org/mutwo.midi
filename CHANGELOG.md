@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.12.0] - 2024-04-24
+
+This mainly adjusts 'mutwo.midi' to the new 'mutwo.core >= 2.0.0' release.
+
+### Removed
+- numpy dependency, see [here](https://github.com/mutwo-org/mutwo.midi/commit/69d20e56f834b5bdf9a346729a126ec47332af33)
+
+
 ## [0.11.0] - 2023-07-23
 
 ### Added
