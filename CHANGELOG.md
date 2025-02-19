@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased]
 
+## [0.12.1] - 2025-02-19
+
+### Fixed
+- tests with mutwo.music >= 0.28.0, see [here](https://github.com/mutwo-org/mutwo.midi/commit/67f30b66a4482c980c52fe48d42fdb1ef25cb5dc)
+
+
 ## [0.12.0] - 2024-04-24
 
 This mainly adjusts 'mutwo.midi' to the new 'mutwo.core >= 2.0.0' release.
