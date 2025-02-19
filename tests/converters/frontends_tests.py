@@ -585,7 +585,7 @@ class EventToMidiFileTest(unittest.TestCase):
                 music_parameters.WesternPitch("aqs", 4),
             ],
             2,
-            0.5,
+            music_parameters.AmplitudeVolume(0.5),
         )
         absolute_time2 = 2
         absolute_time2_in_ticks = self.converter._beats_to_ticks(absolute_time2)
